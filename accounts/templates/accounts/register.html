@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}Register{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+
+{% block auth_content %}
+<div class="auth-page">
+    <div class="auth-container">
+        <div class="auth-brand">
+            <div class="brand-icon">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="2" width="20" height="20" rx="5" />
+                    <circle cx="12" cy="12" r="5" />
+                    <circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" />
+                </svg>
+            </div>
+            <h1>IGDM Pro</h1>
+            <p>Create your account to get started</p>
+        </div>
+
+        <div class="auth-card">
+            <form method="post" novalidate>
+                {% csrf_token %}
+
+                <div class="form-group">
+                    <label class="form-label" for="id_email">Email</label>
+                    {{ form.email }}
+                    {% if form.email.errors %}
+                    {% for error in form.email.errors %}
+                    <div class="form-error">{{ error }}</div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="id_mobile_number">Mobile Number</label>
+                    {{ form.mobile_number }}
+                    {% if form.mobile_number.errors %}
+                    {% for error in form.mobile_number.errors %}
+                    <div class="form-error">{{ error }}</div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="id_password">Password</label>
+                    {{ form.password }}
+                    {% if form.password.errors %}
+                    {% for error in form.password.errors %}
+                    <div class="form-error">{{ error }}</div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="id_password_confirm">Confirm Password</label>
+                    {{ form.password_confirm }}
+                    {% if form.password_confirm.errors %}
+                    {% for error in form.password_confirm.errors %}
+                    <div class="form-error">{{ error }}</div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+
+                {% if form.non_field_errors %}
+                {% for error in form.non_field_errors %}
+                <div class="form-error mb-2">{{ error }}</div>
+                {% endfor %}
+                {% endif %}
+
+                <button type="submit" class="btn btn-primary btn-lg" style="width:100%">
+                    Create Account
+                </button>
+            </form>
+        </div>
+
+        <div class="auth-footer">
+            Already have an account? <a href="{% url 'accounts:login' %}">Sign in</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}Dry Run — {{ automation.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Dry Run: {{ automation.name }}</h1>
+    <p class="page-subtitle">Simulating automation with sample comments. No DMs are actually sent.</p>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Automation Config</h3>
+    </div>
+    <div style="font-size: 0.9rem; color: var(--text-secondary);">
+        <p>Keywords: <strong>{% if automation.keywords %}{{ automation.keywords|join:", " }}{% else %}Any (matches
+                all){% endif %}</strong></p>
+        <p>DM Message: <strong>"{{ automation.dm_message }}"</strong></p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Simulation Results</h3>
+    </div>
+
+    {% for r in results %}
+    <div class="dry-run-result {% if r.matched %}dry-run-match{% else %}dry-run-no-match{% endif %}">
+        <div class="dry-run-icon">
+            {% if r.matched %}✓{% else %}✗{% endif %}
+        </div>
+        <div style="flex:1;">
+            <div style="font-weight: 600;">@{{ r.comment.username }}</div>
+            <div style="font-size: 0.85rem; color: var(--text-secondary);">"{{ r.comment.text }}"</div>
+        </div>
+        <div style="text-align: right; font-size: 0.82rem;">
+            {% if r.matched %}
+            <span class="badge badge-active">Would DM</span>
+            <div style="color: var(--text-muted); margin-top: 4px;">{{ r.dm_message }}</div>
+            {% else %}
+            <span class="badge badge-inactive">No Match</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="flex gap-1 mt-3">
+    <a href="{% url 'automations:detail' automation.id %}" class="btn btn-outline">← Back to Automation</a>
+    {% if not automation.is_active %}
+    <a href="{% url 'automations:toggle' automation.id %}" class="btn btn-success">Go Live 🚀</a>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}Connect Instagram{% endblock %}
+
+{% block content %}
+<div class="connect-page">
+    <div class="connect-container">
+        <div class="connect-icon">
+            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="white" stroke-width="2">
+                <rect x="2" y="2" width="20" height="20" rx="5" />
+                <circle cx="12" cy="12" r="5" />
+                <circle cx="17.5" cy="6.5" r="1.5" fill="white" />
+            </svg>
+        </div>
+
+        <h2>Connect Your Instagram</h2>
+        <p>Link your Instagram Business or Creator account to start automating DMs. We'll need a few permissions to work
+            properly.</p>
+
+        <div class="permissions-list">
+            <div class="permission-item">
+                <div class="permission-check">✓</div>
+                <span><strong>Basic Profile</strong> — Read your username and profile info</span>
+            </div>
+            <div class="permission-item">
+                <div class="permission-check">✓</div>
+                <span><strong>Messages</strong> — Send and manage DMs on your behalf</span>
+            </div>
+            <div class="permission-item">
+                <div class="permission-check">✓</div>
+                <span><strong>Comments</strong> — Monitor comments for automation triggers</span>
+            </div>
+            <div class="permission-item">
+                <div class="permission-check">✓</div>
+                <span><strong>Content</strong> — Access your posts and reels</span>
+            </div>
+            <div class="permission-item">
+                <div class="permission-check">✓</div>
+                <span><strong>Insights</strong> — View engagement metrics</span>
+            </div>
+        </div>
+
+        <a href="{{ oauth_url }}" class="btn btn-primary btn-lg">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="2" width="20" height="20" rx="5" />
+                <circle cx="12" cy="12" r="5" />
+                <circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" />
+            </svg>
+            Connect Instagram
+        </a>
+
+        {% if ig_accounts.count > 0 %}
+        <div class="account-list mt-4">
+            <h3 class="text-sm text-muted mb-2" style="text-transform: uppercase; letter-spacing: 0.05em;">Connected
+                Accounts</h3>
+            {% for ig in ig_accounts %}
+            <div class="account-item">
+                <div class="account-avatar">{{ ig.username|first|upper }}</div>
+                <div class="account-item-info">
+                    <div class="account-item-name">@{{ ig.username }}</div>
+                    <div class="account-item-id">ID: {{ ig.ig_user_id }}</div>
+                </div>
+                {% if ig.is_token_valid %}
+                <span class="badge badge-active">Active</span>
+                {% else %}
+                <span class="badge badge-danger">Token Expired</span>
+                {% endif %}
+                <a href="{% url 'instagram:disconnect' ig.id %}" class="btn btn-outline btn-sm"
+                    onclick="return confirm('Disconnect @{{ ig.username }}? This will pause all automations.')">
+                    Disconnect
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

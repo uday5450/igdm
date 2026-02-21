@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block title %}Contacts{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="page-title">Contacts</h1>
+            <p class="page-subtitle">Users captured by your automations</p>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filters-bar">
+    <form method="get" style="display:flex; gap:12px; flex-wrap:wrap; width:100%;">
+        <input type="text" name="search" class="form-input" placeholder="Search username or comment..."
+            value="{{ filters.search }}" style="flex:1; min-width:200px;">
+        <select name="tag" class="form-input" style="width:auto; min-width:140px;">
+            <option value="">All Tags</option>
+            {% for tag in tags %}
+            <option value="{{ tag }}" {% if filters.tag==tag %}selected{% endif %}>{{ tag }}</option>
+            {% endfor %}
+        </select>
+        <select name="dm_sent" class="form-input" style="width:auto; min-width:140px;">
+            <option value="">DM Status</option>
+            <option value="yes" {% if filters.dm_sent=='yes' %}selected{% endif %}>DM Sent</option>
+            <option value="no" {% if filters.dm_sent=='no' %}selected{% endif %}>DM Failed</option>
+        </select>
+        <button type="submit" class="btn btn-outline">Filter</button>
+    </form>
+</div>
+
+<!-- Contacts Table -->
+{% if contacts %}
+<div class="card" style="padding:0;">
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Comment</th>
+                    <th>Tag</th>
+                    <th>DM Status</th>
+                    <th>Captured</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for contact in contacts %}
+                <tr>
+                    <td><strong>@{{ contact.username|default:"unknown" }}</strong></td>
+                    <td class="text-sm"
+                        style="max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                        {{ contact.comment_text|truncatechars:60 }}
+                    </td>
+                    <td>{% if contact.tag %}<span class="badge badge-info">{{ contact.tag }}</span>{% else %}—{% endif
+                        %}</td>
+                    <td>
+                        {% if contact.dm_sent %}
+                        <span class="badge badge-active">Sent</span>
+                        {% else %}
+                        <span class="badge badge-danger">Failed</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted text-sm">{{ contact.created_at|timesince }} ago</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2" />
+            <circle cx="9" cy="7" r="4" />
+        </svg>
+        <h3>No Contacts Yet</h3>
+        <p>Contacts will appear here when users trigger your automations.</p>
+        <a href="{% url 'automations:create' %}" class="btn btn-primary">Create Automation</a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-subtitle">Welcome back! Here's your @{{ ig_account.username }} overview.</p>
+</div>
+
+{% if token_warning %}
+<div class="alert alert-warning">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+        <line x1="12" y1="9" x2="12" y2="13" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+    <span>Your Instagram token is expired or expiring soon. <a href="{% url 'instagram:connect' %}">Reconnect now</a> to
+        keep automations running.</span>
+</div>
+{% endif %}
+
+<!-- Stats Grid -->
+<div class="stats-grid">
+    <div class="stat-card purple">
+        <div class="stat-label">Active Automations</div>
+        <div class="stat-value">{{ stats.active_automations }}</div>
+        <div class="stat-detail">{{ stats.total_automations }} total</div>
+    </div>
+    <div class="stat-card pink">
+        <div class="stat-label">DMs Sent</div>
+        <div class="stat-value">{{ stats.dms_sent }}</div>
+        <div class="stat-detail">{{ stats.dms_sent_7d }} in last 7 days</div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-label">Contacts Captured</div>
+        <div class="stat-value">{{ stats.total_contacts }}</div>
+        <div class="stat-detail">{{ stats.contacts_7d }} in last 7 days</div>
+    </div>
+    <div class="stat-card orange">
+        <div class="stat-label">Total Triggers</div>
+        <div class="stat-value">{{ stats.total_triggers }}</div>
+        <div class="stat-detail">{{ stats.total_failures }} failed</div>
+    </div>
+</div>
+
+<!-- Two Column Layout -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+    <!-- Recent Contacts -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Recent Contacts</h3>
+            <a href="{% url 'dashboard:contacts' %}" class="btn btn-outline btn-sm">View All</a>
+        </div>
+        {% if recent_contacts %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Tag</th>
+                        <th>DM</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contact in recent_contacts %}
+                    <tr>
+                        <td>@{{ contact.username|default:"unknown" }}</td>
+                        <td>
+                            {% if contact.tag %}
+                            <span class="badge badge-info">{{ contact.tag }}</span>
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if contact.dm_sent %}
+                            <span class="badge badge-active">Sent</span>
+                            {% else %}
+                            <span class="badge badge-danger">Failed</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>No contacts yet. Create and activate an automation to start capturing contacts.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Recent Events -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Recent Webhook Events</h3>
+        </div>
+        {% if recent_events %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Result</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in recent_events %}
+                    <tr>
+                        <td><span class="badge badge-info">{{ event.event_type }}</span></td>
+                        <td>{{ event.process_result|default:"pending" }}</td>
+                        <td class="text-muted text-sm">{{ event.received_at|timesince }} ago</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>No webhook events received yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

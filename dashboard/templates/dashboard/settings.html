@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Settings</h1>
+    <p class="page-subtitle">Manage your account and connected Instagram profiles</p>
+</div>
+
+<!-- Account Info -->
+<div class="card mb-3">
+    <h3 class="card-title mb-2">Account Information</h3>
+    <div class="detail-grid">
+        <div class="detail-item">
+            <div class="detail-label">Email</div>
+            <div class="detail-value">{{ user.email }}</div>
+        </div>
+        <div class="detail-item">
+            <div class="detail-label">Mobile</div>
+            <div class="detail-value">{{ user.mobile_number|default:"Not set" }}</div>
+        </div>
+        <div class="detail-item">
+            <div class="detail-label">Joined</div>
+            <div class="detail-value">{{ user.date_joined|date:"M d, Y" }}</div>
+        </div>
+        <div class="detail-item">
+            <div class="detail-label">Plan</div>
+            <div class="detail-value">Free Plan</div>
+        </div>
+    </div>
+</div>
+
+<!-- Free Plan Limits -->
+<div class="card mb-3">
+    <h3 class="card-title mb-2">Free Plan Limits</h3>
+    <div class="detail-grid">
+        <div class="detail-item">
+            <div class="detail-label">Active Automations</div>
+            <div class="detail-value">1 max</div>
+        </div>
+        <div class="detail-item">
+            <div class="detail-label">Keywords per Automation</div>
+            <div class="detail-value">3 max</div>
+        </div>
+        <div class="detail-item">
+            <div class="detail-label">DM Message Length</div>
+            <div class="detail-value">80 characters</div>
+        </div>
+        <div class="detail-item">
+            <div class="detail-label">Links per DM</div>
+            <div class="detail-value">1 max</div>
+        </div>
+    </div>
+    <p class="text-sm text-muted mt-2">Advanced features (opening message, public reply, follow gate, email capture) are
+        disabled on the Free plan.</p>
+</div>
+
+<!-- Connected Instagram Accounts -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Connected Instagram Accounts</h3>
+        <a href="{% url 'instagram:connect' %}" class="btn btn-outline btn-sm">+ Add Account</a>
+    </div>
+
+    {% if user_ig_accounts %}
+    <div class="account-list">
+        {% for ig in user_ig_accounts %}
+        <div class="account-item">
+            <div class="account-avatar">{{ ig.username|first|upper }}</div>
+            <div class="account-item-info">
+                <div class="account-item-name">@{{ ig.username }}</div>
+                <div class="account-item-id">ID: {{ ig.ig_user_id }} · Token expires: {{ ig.token_expires_at|date:"M d,
+                    Y"|default:"Unknown" }}</div>
+            </div>
+            {% if ig.is_token_valid %}
+            <span class="badge badge-active">Active</span>
+            {% else %}
+            <span class="badge badge-danger">Expired</span>
+            {% endif %}
+            <a href="{% url 'instagram:disconnect' ig.id %}" class="btn btn-outline btn-sm"
+                onclick="return confirm('Disconnect @{{ ig.username }}? Automations will be paused.')">
+                Disconnect
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No Instagram accounts connected.</p>
+        <a href="{% url 'instagram:connect' %}" class="btn btn-primary">Connect Instagram</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

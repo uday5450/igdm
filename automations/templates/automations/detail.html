@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}{{ automation.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="page-title">{{ automation.name }}</h1>
+            <p class="page-subtitle">{{ automation.get_template_type_display }} · @{{ automation.ig_account.username }}
+            </p>
+        </div>
+        <div class="flex gap-1">
+            <a href="{% url 'automations:toggle' automation.id %}"
+                class="btn btn-sm {% if automation.is_active %}btn-outline{% else %}btn-success{% endif %}">
+                {% if automation.is_active %}Deactivate{% else %}Activate{% endif %}
+            </a>
+            <a href="{% url 'automations:dry_run' automation.id %}" class="btn btn-outline btn-sm">Dry Run</a>
+            <a href="{% url 'automations:delete' automation.id %}" class="btn btn-danger btn-sm">Delete</a>
+        </div>
+    </div>
+</div>
+
+{% if automation.is_paused %}
+<div class="alert alert-warning">
+    ⚠ <strong>Paused:</strong> {{ automation.pause_reason }}
+    {% if 'token' in automation.pause_reason|lower %}
+    <a href="{% url 'instagram:connect' %}" style="margin-left: 8px;">Reconnect Instagram →</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Status & Details -->
+<div class="detail-grid mb-3">
+    <div class="detail-item">
+        <div class="detail-label">Status</div>
+        <div class="detail-value">
+            {% if automation.is_paused %}
+            <span class="badge badge-paused">Paused</span>
+            {% elif automation.is_active %}
+            <span class="badge badge-active">Live</span>
+            {% else %}
+            <span class="badge badge-inactive">Inactive</span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="detail-item">
+        <div class="detail-label">Target Post</div>
+        <div class="detail-value">{{ automation.target_post_id|default:"Any post" }}</div>
+    </div>
+    <div class="detail-item">
+        <div class="detail-label">Keywords</div>
+        <div class="detail-value">
+            {% if automation.keywords %}{{ automation.keywords|join:", " }}{% else %}All comments{% endif %}
+        </div>
+    </div>
+    <div class="detail-item">
+        <div class="detail-label">Tag</div>
+        <div class="detail-value">
+            {% if automation.tag %}<span class="badge badge-info">{{ automation.tag }}</span>{% else %}None{% endif %}
+        </div>
+    </div>
+    <div class="detail-item">
+        <div class="detail-label">DM Message</div>
+        <div class="detail-value" style="font-size: 0.9rem;">{{ automation.dm_message }}</div>
+    </div>
+    <div class="detail-item">
+        <div class="detail-label">Created</div>
+        <div class="detail-value">{{ automation.created_at|date:"M d, Y H:i" }}</div>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-grid mb-3">
+    <div class="stat-card purple">
+        <div class="stat-label">Total Triggers</div>
+        <div class="stat-value">{{ automation.total_triggers }}</div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-label">DMs Sent</div>
+        <div class="stat-value">{{ automation.total_dms_sent }}</div>
+    </div>
+    <div class="stat-card orange">
+        <div class="stat-label">Failures</div>
+        <div class="stat-value">{{ automation.total_failures }}</div>
+    </div>
+</div>
+
+<!-- Contacts captured by this automation -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Captured Contacts</h3>
+    </div>
+    {% if contacts %}
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Comment</th>
+                    <th>DM</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for contact in contacts %}
+                <tr>
+                    <td><strong>@{{ contact.username|default:"unknown" }}</strong></td>
+                    <td class="text-sm"
+                        style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                        {{ contact.comment_text|truncatechars:50 }}
+                    </td>
+                    <td>
+                        {% if contact.dm_sent %}
+                        <span class="badge badge-active">Sent</span>
+                        {% else %}
+                        <span class="badge badge-danger">Failed</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted text-sm">{{ contact.created_at|timesince }} ago</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No contacts captured yet. {% if not automation.is_active %}Activate this automation to start capturing
+            contacts.{% endif %}</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

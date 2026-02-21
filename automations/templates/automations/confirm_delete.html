@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Delete {{ automation.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Delete Automation</h1>
+</div>
+
+<div class="card" style="max-width: 480px;">
+    <div class="alert alert-danger" style="margin-bottom: 20px;">
+        ⚠ This will permanently delete <strong>"{{ automation.name }}"</strong> and all associated contacts. This cannot
+        be undone.
+    </div>
+
+    <div style="margin-bottom: 20px; font-size: 0.9rem; color: var(--text-secondary);">
+        <p>Type: {{ automation.get_template_type_display }}</p>
+        <p>Contacts captured: {{ automation.contacts.count }}</p>
+        <p>DMs sent: {{ automation.total_dms_sent }}</p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="flex gap-1">
+            <button type="submit" class="btn btn-danger">Yes, Delete</button>
+            <a href="{% url 'automations:detail' automation.id %}" class="btn btn-outline">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

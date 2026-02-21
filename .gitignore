@@ -1,0 +1,271 @@
+# ============================================
+# Python Django Project .gitignore
+# ============================================
+
+# Python
+# ============================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django
+# ============================================
+# Django stuff
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Django migrations (optional - uncomment if you don't want to track migrations)
+# */migrations/*.py
+# */migrations/*.pyc
+# !*/migrations/__init__.py
+
+# Media files (user uploads)
+media/
+mediafiles/
+uploads/
+
+# Static files (collected static files)
+staticfiles/
+static_root/
+static/
+
+# Django secret key
+.env
+.env.local
+.env.*.local
+secrets.json
+
+# Django cache
+*.cache
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Virtual Environment
+# ============================================
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+virtualenv/
+.venv/
+
+# IDEs and Editors
+# ============================================
+# VS Code
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+migrations/
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# PyCharm
+.idea/
+
+# Eclipse
+.project
+.pydevproject
+.settings/
+
+# macOS
+# ============================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+# ============================================
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+# ============================================
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Logs and databases
+# ============================================
+*.log
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+
+# Environment variables
+# ============================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# Secrets and credentials
+# ============================================
+secrets.json
+credentials.json
+*.pem
+*.key
+*.crt
+config.ini
+settings.ini
+
+# Temporary files
+# ============================================
+*.tmp
+*.temp
+*.bak
+*.backup
+*.swp
+*.swo
+*~
+
+# Node modules (if using frontend build tools)
+# ============================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build files
+# ============================================
+*.pyc
+*.pyo
+*.pyd
+dist/
+build/
+*.egg-info/
+
+# Misc
+# ============================================
+*.orig
+*.rej
+*.patch
+*.diff
+*.sassc
+.sass-cache/
+.connect.lock
+.eslintcache
+.stylelintcache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+.cython/
+
+# Project specific
+# ============================================
+# Add your project-specific ignores here
+# Example:
+# custom_uploads/
+# temp_files/

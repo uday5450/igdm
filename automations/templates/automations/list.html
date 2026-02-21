@@ -1,0 +1,139 @@
+﻿{% extends 'base.html' %}
+{% block title %}Automations{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="page-title">Automations</h1>
+            <p class="page-subtitle">Manage your Instagram DM automations for @{{ ig_account.username }}</p>
+        </div>
+        <button onclick="openTemplateModal()" class="btn btn-primary">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            New Automation
+        </button>
+    </div>
+</div>
+
+{% if automations %}
+<div style="display: grid; gap: 16px;">
+    {% for automation in automations %}
+    <div class="automation-card">
+        <div class="automation-header">
+            <a href="{% url 'automations:detail' automation.id %}" style="text-decoration:none; color:inherit;">
+                <div class="automation-name">{{ automation.name }}</div>
+            </a>
+            <div class="flex gap-1">
+                {% if automation.is_paused %}
+                <span class="badge badge-paused">Paused</span>
+                {% elif automation.is_active %}
+                <span class="badge badge-active">Live</span>
+                {% else %}
+                <span class="badge badge-inactive">Inactive</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="automation-type">{{ automation.get_template_type_display }}</div>
+        <div style="font-size: 0.85rem; color: var(--text-secondary);">
+            {% if automation.keywords %}
+            Keywords: <strong>{{ automation.keywords|join:", " }}</strong>
+            {% else %}
+            Matches all comments
+            {% endif %}
+            {% if automation.tag %} · Tag: <span class="badge badge-info">{{ automation.tag }}</span>{% endif %}
+        </div>
+
+        {% if automation.is_paused %}
+        <div class="alert alert-warning mt-2" style="margin-bottom:0; padding:10px 14px; font-size:0.82rem;">
+            Warning {{ automation.pause_reason }}
+        </div>
+        {% endif %}
+
+        <div class="automation-stats">
+            <div class="automation-stat">Triggers: <strong>{{ automation.total_triggers }}</strong></div>
+            <div class="automation-stat">DMs Sent: <strong>{{ automation.total_dms_sent }}</strong></div>
+            <div class="automation-stat">Failures: <strong>{{ automation.total_failures }}</strong></div>
+        </div>
+
+        <div class="automation-actions">
+            <a href="{% url 'automations:detail' automation.id %}" class="btn btn-outline btn-sm">View</a>
+            <a href="{% url 'automations:toggle' automation.id %}"
+                class="btn btn-sm {% if automation.is_active %}btn-outline{% else %}btn-success{% endif %}">
+                {% if automation.is_active %}Deactivate{% else %}Activate{% endif %}
+            </a>
+            <a href="{% url 'automations:dry_run' automation.id %}" class="btn btn-outline btn-sm">Dry Run</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polygon points="13,2 3,14 12,14 11,22 21,10 12,10" />
+        </svg>
+        <h3>No Automations Yet</h3>
+        <p>Create your first automation to start sending DMs automatically when users comment on your posts.</p>
+        <button onclick="openTemplateModal()" class="btn btn-primary">Create Your First Automation</button>
+    </div>
+</div>
+{% endif %}
+
+<!-- Template Selection Modal -->
+<div class="modal-overlay" id="templateModal" onclick="closeTemplateModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h2 class="modal-title">Templates</h2>
+            <button class="modal-close" onclick="closeTemplateModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="template-grid">
+                <a href="{% url 'automations:create' %}?type=comment_dm" class="template-option">
+                    <div class="template-badge">
+                        <span class="template-dot"></span>
+                        Instant Automation
+                    </div>
+                    <h3 class="template-name">Instant DM from Comments</h3>
+                    <p class="template-desc">Send links instantly when people comment on your post or reel</p>
+                </a>
+                <div class="template-option template-disabled">
+                    <div class="template-badge">
+                        <span class="template-dot"></span>
+                        Instant Automation
+                    </div>
+                    <h3 class="template-name">Instant DM from Stories</h3>
+                    <p class="template-desc">Send links instantly when users react or reply to your Stories</p>
+                    <span class="coming-soon-tag">Coming Soon</span>
+                </div>
+                <div class="template-option template-disabled">
+                    <div class="template-badge">
+                        <span class="template-dot"></span>
+                        Instant Automation
+                    </div>
+                    <h3 class="template-name">Respond to all DMs</h3>
+                    <p class="template-desc">Auto-send customized replies when people DM you</p>
+                    <span class="coming-soon-tag">Coming Soon</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function openTemplateModal() {
+    document.getElementById('templateModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+function closeTemplateModal(e) {
+    if (e && e.target !== e.currentTarget) return;
+    document.getElementById('templateModal').classList.remove('active');
+    document.body.style.overflow = '';
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeTemplateModal();
+});
+</script>
+{% endblock %}
