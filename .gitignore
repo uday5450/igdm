@@ -80,7 +80,6 @@ uploads/
 # Static files (collected static files)
 staticfiles/
 static_root/
-static/
 
 # Django secret key
 .env
