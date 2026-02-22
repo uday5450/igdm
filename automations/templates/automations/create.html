@@ -1,12 +1,12 @@
 ﻿{% extends 'base.html' %}
-{% block title %}Instant DM from Comments{% endblock %}
+{% block title %}{% if is_edit %}Edit Automation{% else %}Instant DM from Comments{% endif %}{% endblock %}
 
 {% block content %}
 <!-- Wizard Header -->
 <div class="wizard-header">
     <div class="wizard-header-left">
         <a href="{% url 'automations:list' %}" class="wizard-back">&times;</a>
-        <h1 class="wizard-title">Instant DM from Comments</h1>
+        <h1 class="wizard-title">{% if is_edit %}Edit Automation{% else %}Instant DM from Comments{% endif %}</h1>
     </div>
     <div class="wizard-header-right">
         <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('mainForm').submit();"
@@ -18,7 +18,7 @@
         </button>
         <button type="submit" form="mainForm" class="btn btn-success btn-sm" style="gap:6px;">
             <span style="width:8px;height:8px;background:#fff;border-radius:50%;display:inline-block;"></span>
-            Go Live
+            {% if is_edit %}Save Changes{% else %}Go Live{% endif %}
         </button>
     </div>
 </div>
@@ -52,6 +52,22 @@
                         <div class="phone-post-subtext">Choose a post from automation</div>
                     </div>
                     <img id="phoneImage" src="" alt="" style="display:none;">
+                </div>
+                <!-- DM Preview -->
+                <div class="phone-dm-preview" id="phoneDmPreview" style="display:none;">
+                    <div class="phone-dm-header">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M15 18l-6-6 6-6" />
+                        </svg>
+                        <span>{{ ig_account.username }}</span>
+                    </div>
+                    <div class="phone-dm-body">
+                        <div class="phone-dm-bubble" id="phoneDmBubble">Your DM will appear here...</div>
+                    </div>
+                    <div class="phone-dm-input">
+                        <span>Message...</span>
+                    </div>
                 </div>
                 <div class="phone-bottom-bar">
                     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
@@ -104,8 +120,7 @@
                         {% for media in media_list %}
                         <div class="reel-thumb" data-index="{{ forloop.counter0 }}"
                             onclick="selectPost('{{ media.id }}', '{{ media.permalink }}', this)"
-                            title="{{ media.caption|truncatechars:40|default:'No caption' }}" {% if forloop.counter0>=
-                            10 %}style="display:none;"{% endif %}>
+                            title="{{ media.caption|truncatechars:40|default:'No caption' }}">
                             {% if media.thumbnail_url %}
                             <img src="{{ media.thumbnail_url }}" alt="Reel" loading="lazy">
                             {% elif media.media_url %}
@@ -160,14 +175,23 @@
                     </svg>
                 </div>
                 <div class="step-body">
-                    <div class="tag-input-wrapper">
-                        <div class="tag-chips" id="keywordChips"></div>
-                        <input type="text" class="tag-input" id="keywordInput"
-                            placeholder="Type & hit Enter or click + to add" onkeydown="handleKeywordKey(event)">
-                        <button type="button" class="tag-add-btn" onclick="addKeyword()">+</button>
+                    <div class="premium-toggle" style="margin-bottom:12px;">
+                        <span class="premium-label">Any Keyword (match all comments)</span>
+                        <label class="toggle"><input type="checkbox" id="anyKeywordToggle"
+                                onchange="toggleAnyKeyword()"><span class="toggle-slider"></span></label>
                     </div>
-                    <input type="hidden" name="keywords" id="keywordsHidden" value="">
-                    <div class="form-help">Max 3 keywords. Leave blank to match all comments.</div>
+                    <div id="keywordInputSection">
+                        <div class="tag-input-wrapper">
+                            <div class="tag-chips" id="keywordChips"></div>
+                            <input type="text" class="tag-input" id="keywordInput"
+                                placeholder="Type &amp; hit Enter or click + to add"
+                                onkeydown="handleKeywordKey(event)">
+                            <button type="button" class="tag-add-btn" onclick="addKeyword()">+</button>
+                        </div>
+                        <div class="form-help">Max 3 keywords.</div>
+                    </div>
+                    <input type="hidden" name="keywords" id="keywordsHidden"
+                        value="{{ form.keywords.value|default:'' }}">
                     {% if form.keywords.errors %}
                     {% for e in form.keywords.errors %}
                     <div class="form-error">{{ e }}</div>
@@ -188,8 +212,8 @@
                 </div>
                 <div class="step-body">
                     <div class="tag-input-wrapper">
-                        <input type="text" class="tag-input" name="tag" placeholder="Type & hit Enter or click + to add"
-                            value="" style="flex:1;">
+                        <input type="text" class="tag-input" name="tag"
+                            placeholder="Type &amp; hit Enter or click + to add" value="" style="flex:1;">
                         <button type="button" class="tag-add-btn"
                             onclick="this.previousElementSibling.focus()">+</button>
                     </div>
@@ -214,21 +238,26 @@
                 </div>
                 <div class="step-body">
                     <div class="dm-composer">
-                        <div class="dm-char-counter"><span id="charCount">0</span> / 80</div>
+                        <div class="dm-char-counter"><span id="charCount">0</span> / 1000</div>
                         <div class="dm-input-area">
                             <textarea name="dm_message" id="dmMessage" class="dm-textarea"
-                                placeholder="Your message will appear here..." maxlength="80"
-                                oninput="updateCharCount()"></textarea>
+                                placeholder="Your message will appear here..." maxlength="1000"
+                                oninput="updateCharCount(); updateDmPreview()">{{ form.dm_message.value|default:'' }}</textarea>
                         </div>
-                        <button type="button" class="dm-add-link" onclick="insertLink()">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <circle cx="12" cy="12" r="10" />
-                                <line x1="12" y1="8" x2="12" y2="16" />
-                                <line x1="8" y1="12" x2="16" y2="12" />
-                            </svg>
-                            Add Link
-                        </button>
+                        <div class="dm-link-section">
+                            <button type="button" class="dm-add-link" onclick="addDmButton()">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <line x1="12" y1="8" x2="12" y2="16" />
+                                    <line x1="8" y1="12" x2="16" y2="12" />
+                                </svg>
+                                Add Button Link
+                            </button>
+                            <div id="dmButtonsList"></div>
+                            <input type="hidden" name="dm_buttons" id="dmButtonsHidden"
+                                value="{{ form.dm_buttons.value|default:'[]' }}">
+                        </div>
                     </div>
                     {% if form.dm_message.errors %}
                     {% for e in form.dm_message.errors %}
@@ -268,7 +297,24 @@
         </div>
         <div class="premium-toggle">
             <span class="premium-label">Public reply to comments</span>
-            <label class="toggle disabled"><input type="checkbox" disabled><span class="toggle-slider"></span></label>
+            <label class="toggle"><input type="checkbox" name="public_reply_enabled" id="publicReplyToggle" {% if form.public_reply_enabled.value %}checked{% endif %} onchange="togglePublicReply()"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="public-reply-section" id="publicReplySection"
+            style="{% if not form.public_reply_enabled.value %}display:none;{% endif %}">
+            <p class="premium-desc" style="margin-bottom:10px;">A variant will be selected at random to avoid
+                repetition.</p>
+            <div id="replyVariants">
+            </div>
+            <button type="button" class="dm-add-link" onclick="addReplyVariant()" style="margin-top:8px;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="16" />
+                    <line x1="8" y1="12" x2="16" y2="12" />
+                </svg>
+                Add Public Reply
+            </button>
+            <textarea name="public_replies" id="publicRepliesHidden"
+                style="display:none;">{{ form.public_replies.value|default:'' }}</textarea>
         </div>
         <div class="premium-toggle">
             <span class="premium-label">Ask to follow before sending DM</span>
@@ -309,6 +355,11 @@
         var showBtn = document.getElementById('showMoreBtn');
         var countEl = document.getElementById('reelCount');
         if (!showBtn || !countEl) return;
+        // Hide thumbnails beyond first page
+        var thumbs = document.querySelectorAll('.reel-thumb');
+        thumbs.forEach(function (t, i) {
+            if (i >= reelsPerPage) t.style.display = 'none';
+        });
         var shown = Math.min(reelsPerPage, totalReels);
         countEl.textContent = 'Showing ' + shown + ' of ' + totalReels + ' posts';
         if (totalReels > reelsPerPage) {
@@ -361,6 +412,12 @@
 
     // Keywords chip input
     var keywords = [];
+    // Pre-fill keywords from form if editing
+    var existingKeywords = document.getElementById('keywordsHidden').value;
+    if (existingKeywords) {
+        keywords = existingKeywords.split(',').filter(function (k) { return k.trim(); });
+        renderKeywords();
+    }
     function addKeyword() {
         var input = document.getElementById('keywordInput');
         var val = input.value.trim();
@@ -388,20 +445,178 @@
         if (e.key === 'Enter') { e.preventDefault(); addKeyword(); }
     }
 
+    // Any Keyword toggle
+    function toggleAnyKeyword() {
+        var checked = document.getElementById('anyKeywordToggle').checked;
+        var section = document.getElementById('keywordInputSection');
+        if (checked) {
+            section.style.display = 'none';
+            keywords = [];
+            renderKeywords();
+        } else {
+            section.style.display = '';
+        }
+    }
+
     // DM character counter
     function updateCharCount() {
         var ta = document.getElementById('dmMessage');
         document.getElementById('charCount').textContent = ta.value.length;
     }
 
-    // Insert link placeholder
-    function insertLink() {
+    // DM Buttons (multiple CTA buttons with title+url)
+    var dmButtons = [];
+    try {
+        var initBtns = document.getElementById('dmButtonsHidden').value;
+        if (initBtns) dmButtons = JSON.parse(initBtns);
+    } catch (e) { dmButtons = []; }
+
+    function addDmButton() {
+        dmButtons.push({ title: '', url: '' });
+        renderDmButtons();
+    }
+
+    function removeDmButton(i) {
+        dmButtons.splice(i, 1);
+        renderDmButtons();
+        updateDmPreview();
+    }
+
+    function updateDmButton(i, field, value) {
+        dmButtons[i][field] = value;
+        syncDmButtons();
+        updateDmPreview();
+    }
+
+    function renderDmButtons() {
+        var container = document.getElementById('dmButtonsList');
+        container.innerHTML = '';
+        dmButtons.forEach(function (btn, i) {
+            var row = document.createElement('div');
+            row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:8px;';
+            row.innerHTML = '<input type="text" class="form-input" placeholder="Button Title (e.g. Shop Now)" value="' + escapeHtml(btn.title) + '" oninput="updateDmButton(' + i + ',\'title\',this.value)" style="flex:1;">' +
+                '<input type="url" class="form-input" placeholder="https://example.com" value="' + escapeHtml(btn.url) + '" oninput="updateDmButton(' + i + ',\'url\',this.value)" style="flex:1;">' +
+                '<button type="button" class="reply-variant-delete" onclick="removeDmButton(' + i + ')" title="Remove">🗑️</button>';
+            container.appendChild(row);
+        });
+        syncDmButtons();
+    }
+
+    function syncDmButtons() {
+        var valid = dmButtons.filter(function (b) { return b.title.trim() && b.url.trim(); });
+        document.getElementById('dmButtonsHidden').value = JSON.stringify(valid);
+    }
+
+    // DM Preview in phone mockup
+    function updateDmPreview() {
         var ta = document.getElementById('dmMessage');
-        if (ta.value.length + 12 <= 80) {
-            ta.value += 'https://';
-            updateCharCount();
-            ta.focus();
+        var preview = document.getElementById('phoneDmPreview');
+        var bubble = document.getElementById('phoneDmBubble');
+        var validBtns = dmButtons.filter(function (b) { return b.title.trim() && b.url.trim(); });
+        if (ta.value.trim() || validBtns.length) {
+            preview.style.display = '';
+            var html = ta.value || 'Your DM will appear here...';
+            validBtns.forEach(function (btn) {
+                html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(88,101,242,0.2);border:1px solid rgba(88,101,242,0.4);border-radius:8px;font-size:0.7rem;color:#5865f2;text-align:center;">🔗 ' + escapeHtml(btn.title) + '</div>';
+            });
+            bubble.innerHTML = html;
+        } else {
+            preview.style.display = 'none';
+            bubble.textContent = 'Your DM will appear here...';
         }
+    }
+
+    // Public Reply Toggle
+    function togglePublicReply() {
+        var checked = document.getElementById('publicReplyToggle').checked;
+        document.getElementById('publicReplySection').style.display = checked ? '' : 'none';
+        if (checked && replyVariants.length === 0) {
+            addReplyVariant();
+        }
+    }
+
+    // Public Reply Variants
+    var replyVariants = [];
+
+    function addReplyVariant() {
+        replyVariants.push('');
+        renderReplyVariants();
+        // Focus the new input
+        var inputs = document.querySelectorAll('.reply-variant-input');
+        if (inputs.length) inputs[inputs.length - 1].focus();
+    }
+
+    function removeReplyVariant(i) {
+        replyVariants.splice(i, 1);
+        renderReplyVariants();
+    }
+
+    function updateReplyVariant(i, val) {
+        replyVariants[i] = val;
+        syncRepliesHidden();
+    }
+
+    function renderReplyVariants() {
+        var container = document.getElementById('replyVariants');
+        container.innerHTML = '';
+        replyVariants.forEach(function (text, i) {
+            var row = document.createElement('div');
+            row.className = 'reply-variant-row';
+            row.innerHTML = '<div class="reply-variant-icon">💬</div>' +
+                '<input type="text" class="form-input reply-variant-input" value="' + escapeHtml(text) + '"' +
+                ' placeholder="e.g. Check your DM 📩" oninput="updateReplyVariant(' + i + ', this.value)" maxlength="100">' +
+                '<button type="button" class="reply-variant-delete" onclick="removeReplyVariant(' + i + ')" title="Remove">🗑️</button>';
+            container.appendChild(row);
+        });
+        syncRepliesHidden();
+    }
+
+    function syncRepliesHidden() {
+        var filtered = replyVariants.filter(function (v) { return v.trim(); });
+        document.getElementById('publicRepliesHidden').value = filtered.join('\n');
+    }
+
+    function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
+    }
+
+    // Init on load
+    updateCharCount();
+    renderDmButtons();
+    updateDmPreview();
+
+    // Init Any Keyword toggle
+    if (keywords.length === 0) {
+        document.getElementById('anyKeywordToggle').checked = true;
+        document.getElementById('keywordInputSection').style.display = 'none';
+    }
+
+    // Pre-fill reply variants from hidden textarea
+    var existingReplies = document.getElementById('publicRepliesHidden').value.trim();
+    if (existingReplies) {
+        replyVariants = existingReplies.split('\n').filter(function (r) { return r.trim(); });
+        renderReplyVariants();
+    }
+
+    // Pre-select post thumbnail if editing
+    var selectedPostId = document.getElementById('id_target_post_id').value;
+    if (selectedPostId) {
+        var thumbs = document.querySelectorAll('.reel-thumb');
+        thumbs.forEach(function (t) {
+            var onclickAttr = t.getAttribute('onclick') || '';
+            if (onclickAttr.indexOf(selectedPostId) !== -1) {
+                t.classList.add('selected');
+                var img = t.querySelector('img');
+                if (img) {
+                    document.getElementById('phonePlaceholder').style.display = 'none';
+                    var phoneImg = document.getElementById('phoneImage');
+                    phoneImg.src = img.src;
+                    phoneImg.style.display = 'block';
+                }
+            }
+        });
     }
 </script>
 {% endblock %}

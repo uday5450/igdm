@@ -49,8 +49,37 @@ class Automation(models.Model):
 
     # DM message (max 80 chars, max 1 link for free plan)
     dm_message = models.CharField(
-        max_length=80,
-        help_text="DM message to send (max 80 chars, max 1 link)"
+        max_length=1000,
+        help_text="DM message to send"
+    )
+
+    # DM CTA buttons (JSON array of {title, url} objects)
+    dm_buttons_json = models.TextField(
+        default='[]',
+        help_text="JSON list of CTA buttons [{title, url}, ...]"
+    )
+
+    @property
+    def dm_buttons(self):
+        """Return DM buttons as a Python list of dicts."""
+        try:
+            return json.loads(self.dm_buttons_json)
+        except (json.JSONDecodeError, TypeError):
+            return []
+
+    @dm_buttons.setter
+    def dm_buttons(self, value):
+        """Set DM buttons from a Python list of dicts."""
+        self.dm_buttons_json = json.dumps(value)
+
+    # Public reply to comments
+    public_reply_enabled = models.BooleanField(
+        default=False,
+        help_text="Whether to publicly reply to comments before sending DM"
+    )
+    public_replies_json = models.TextField(
+        default='[]',
+        help_text="JSON list of public reply variants (one picked randomly)"
     )
 
     # Status
@@ -98,6 +127,27 @@ class Automation(models.Model):
             return True  # No keywords = match everything
         text_lower = text.lower()
         return any(kw.lower() in text_lower for kw in kw_list)
+
+    @property
+    def public_replies(self):
+        """Return public replies as a Python list."""
+        try:
+            return json.loads(self.public_replies_json)
+        except (json.JSONDecodeError, TypeError):
+            return []
+
+    @public_replies.setter
+    def public_replies(self, value):
+        """Set public replies from a Python list."""
+        self.public_replies_json = json.dumps(value)
+
+    def get_random_reply(self):
+        """Pick a random public reply variant."""
+        import random
+        replies = self.public_replies
+        if not replies:
+            return None
+        return random.choice(replies)
 
 
 class Contact(models.Model):

@@ -128,6 +128,17 @@ def _process_comment_change(ig_user_id, value, full_payload, ig_account):
     commenter_id = str(value.get('from', {}).get('id', ''))
     commenter_username = value.get('from', {}).get('username', '')
     media_id = str(value.get('media', {}).get('id', ''))
+    parent_id = value.get('parent_id', '')
+
+    # Skip the bot's own comments (prevents infinite reply loop)
+    if commenter_id == ig_user_id:
+        logger.info(f"Skipping own comment from @{commenter_username}")
+        return
+
+    # Skip reply comments (comments with parent_id are replies, not top-level)
+    if parent_id:
+        logger.info(f"Skipping reply comment (parent_id={parent_id}) from @{commenter_username}")
+        return
 
     # Log the event
     event_log = WebhookEventLog.objects.create(
@@ -156,6 +167,7 @@ def _process_comment_change(ig_user_id, value, full_payload, ig_account):
         logger.exception(f"Error processing comment event: {e}")
         event_log.error_message = str(e)
         event_log.save()
+
 
 
 def _process_messaging_event(ig_user_id, msg_event, full_payload, ig_account):

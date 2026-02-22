@@ -14,14 +14,28 @@ class AutomationForm(forms.ModelForm):
         required=False,
         widget=forms.TextInput(attrs={
             'class': 'form-input',
-            'placeholder': 'e.g. price, link, info (comma-separated, max 3)',
+            'placeholder': 'e.g. price, link, info (comma-separated)',
         }),
-        help_text=f'Comma-separated keywords (max {settings.FREE_PLAN_MAX_KEYWORDS}). Leave blank to match all comments.',
+        help_text='Comma-separated keywords. Leave blank to match all comments.',
+    )
+
+    public_replies = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-input',
+            'placeholder': 'One reply per line (a random variant will be selected)',
+            'rows': 3,
+        }),
+    )
+
+    dm_buttons = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(),
     )
 
     class Meta:
         model = Automation
-        fields = ['name', 'template_type', 'target_post_id', 'tag', 'dm_message']
+        fields = ['name', 'template_type', 'target_post_id', 'tag', 'dm_message', 'public_reply_enabled']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-input',
@@ -40,7 +54,7 @@ class AutomationForm(forms.ModelForm):
             'dm_message': forms.TextInput(attrs={
                 'class': 'form-input',
                 'placeholder': 'Hey! Thanks for your comment. Here\'s the link...',
-                'maxlength': '80',
+                'maxlength': '1000',
             }),
         }
 
@@ -50,35 +64,70 @@ class AutomationForm(forms.ModelForm):
         if not raw:
             return '[]'
         keywords = [kw.strip() for kw in raw.split(',') if kw.strip()]
-        if len(keywords) > settings.FREE_PLAN_MAX_KEYWORDS:
-            raise forms.ValidationError(
-                f'Free plan allows max {settings.FREE_PLAN_MAX_KEYWORDS} keywords.'
-            )
         return json.dumps(keywords)
 
     def clean_dm_message(self):
-        """Validate DM message length and link count."""
+        """Validate DM message length."""
         msg = self.cleaned_data.get('dm_message', '').strip()
         if len(msg) > settings.FREE_PLAN_MAX_DM_LENGTH:
             raise forms.ValidationError(
                 f'DM message must be {settings.FREE_PLAN_MAX_DM_LENGTH} characters or fewer.'
             )
-        # Count links (http:// or https://)
-        link_count = msg.lower().count('http://') + msg.lower().count('https://')
-        if link_count > settings.FREE_PLAN_MAX_LINKS_IN_DM:
-            raise forms.ValidationError(
-                f'Free plan allows max {settings.FREE_PLAN_MAX_LINKS_IN_DM} link in DM message.'
-            )
         return msg
 
+    def clean_dm_buttons(self):
+        """Validate DM buttons JSON."""
+        raw = self.cleaned_data.get('dm_buttons', '').strip()
+        if not raw:
+            return '[]'
+        try:
+            buttons = json.loads(raw)
+            if not isinstance(buttons, list):
+                return '[]'
+            # Filter out empty entries
+            valid = []
+            for b in buttons:
+                title = b.get('title', '').strip()
+                url = b.get('url', '').strip()
+                if title and url:
+                    valid.append({'title': title, 'url': url})
+            return json.dumps(valid)
+        except (json.JSONDecodeError, AttributeError):
+            return '[]'
+
     def clean_tag(self):
-        """Validate tag count."""
+        """Validate tag."""
         tag = self.cleaned_data.get('tag', '').strip()
         return tag
 
     def save(self, commit=True):
         automation = super().save(commit=False)
         automation.keywords_json = self.cleaned_data.get('keywords', '[]')
+        automation.dm_buttons_json = self.cleaned_data.get('dm_buttons', '[]')
+        # Save public replies
+        raw_replies = self.cleaned_data.get('public_replies', '').strip()
+        if raw_replies:
+            replies = [r.strip() for r in raw_replies.split('\n') if r.strip()]
+            automation.public_replies_json = json.dumps(replies)
+        else:
+            automation.public_replies_json = '[]'
         if commit:
             automation.save()
         return automation
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Pre-fill from instance when editing
+        if self.instance and self.instance.pk:
+            # Keywords
+            kw_list = self.instance.keywords
+            if kw_list:
+                self.fields['keywords'].initial = ','.join(kw_list)
+            # DM Buttons
+            buttons = self.instance.dm_buttons
+            if buttons:
+                self.fields['dm_buttons'].initial = json.dumps(buttons)
+            # Public replies
+            replies = self.instance.public_replies
+            if replies:
+                self.fields['public_replies'].initial = '\n'.join(replies)

@@ -214,26 +214,55 @@ def reply_to_comment(access_token: str, comment_id: str, message: str) -> dict:
 
 # ─── Messaging (DM) ─────────────────────────────────────────────────
 
-def send_dm(access_token: str, ig_user_id: str, recipient_id: str, message: str) -> dict:
+def send_dm(access_token: str, ig_user_id: str, recipient_id: str, message: str, buttons: list = None) -> dict:
     """
     Send a DM to a user using the Instagram Messaging API.
-    Uses the comment-based messaging approach (recipient.comment_id)
-    for policy-safe messaging within 24-hour window.
+    If buttons are provided, sends as a CTA button template.
+    Otherwise sends as plain text.
 
     Args:
         access_token: Long-lived access token
         ig_user_id: The IG Business Account ID (sender)
         recipient_id: The recipient's scoped user ID or comment_id
         message: The DM message text
+        buttons: Optional list of {title, url} dicts for CTA buttons
 
     Returns: API response dict
     """
     url = f'{GRAPH_API_BASE}/{ig_user_id}/messages'
-    payload = {
-        'recipient': {'comment_id': recipient_id},
-        'message': {'text': message},
-        'access_token': access_token,
-    }
+
+    if buttons:
+        # Build CTA buttons list
+        cta_buttons = []
+        for btn in buttons:
+            cta_buttons.append({
+                'type': 'web_url',
+                'url': btn.get('url', ''),
+                'title': btn.get('title', 'Open Link'),
+            })
+
+        payload = {
+            'recipient': {'comment_id': recipient_id},
+            'message': {
+                'attachment': {
+                    'type': 'template',
+                    'payload': {
+                        'template_type': 'button',
+                        'text': message,
+                        'buttons': cta_buttons
+                    }
+                }
+            },
+            'access_token': access_token,
+        }
+        print(f"   📎 Sending as CTA with {len(cta_buttons)} button(s): {[b['title'] for b in cta_buttons]}")
+    else:
+        # Send as plain text
+        payload = {
+            'recipient': {'comment_id': recipient_id},
+            'message': {'text': message},
+            'access_token': access_token,
+        }
 
     resp = requests.post(url, json=payload, timeout=30)
 

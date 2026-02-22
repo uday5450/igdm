@@ -34,13 +34,13 @@ def _get_active_ig_account(request):
 
 @login_required
 def automation_list(request):
-    """List all automations for the active Instagram account."""
+    """List all automations for the active Instagram account (shared across all users)."""
     ig_account = _get_active_ig_account(request)
     if not ig_account:
         messages.warning(request, 'Please connect an Instagram account first.')
         return redirect('instagram:connect')
 
-    automations = Automation.objects.filter(ig_account=ig_account, created_by=request.user)
+    automations = Automation.objects.filter(ig_account=ig_account)
 
     return render(request, 'automations/list.html', {
         'automations': automations,
@@ -56,9 +56,9 @@ def automation_create(request):
         messages.warning(request, 'Please connect an Instagram account first.')
         return redirect('instagram:connect')
 
-    # Check free plan limit
+    # Check limit
     active_count = Automation.objects.filter(
-        ig_account=ig_account, created_by=request.user, is_active=True
+        ig_account=ig_account, is_active=True
     ).count()
 
     if request.method == 'POST':
@@ -93,9 +93,54 @@ def automation_create(request):
 
 
 @login_required
+def automation_edit(request, automation_id):
+    """Edit an existing automation (same wizard flow as create)."""
+    ig_account = _get_active_ig_account(request)
+    if not ig_account:
+        messages.warning(request, 'Please connect an Instagram account first.')
+        return redirect('instagram:connect')
+
+    automation = get_object_or_404(
+        Automation, id=automation_id, ig_account=ig_account
+    )
+
+    if request.method == 'POST':
+        form = AutomationForm(request.POST, instance=automation)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Automation "{automation.name}" updated!')
+            return redirect('automations:detail', automation_id=automation.id)
+    else:
+        form = AutomationForm(instance=automation)
+
+    # Fetch recent media for post selection
+    media_list = []
+    if ig_account.is_token_valid:
+        try:
+            access_token = decrypt_token(ig_account.access_token_encrypted)
+            if access_token:
+                media_list = fetch_user_media(access_token, ig_account.ig_user_id)
+        except Exception:
+            pass
+
+    return render(request, 'automations/create.html', {
+        'form': form,
+        'ig_account': ig_account,
+        'media_list': media_list,
+        'automation': automation,
+        'is_edit': True,
+    })
+
+
+@login_required
 def automation_detail(request, automation_id):
     """View automation details and recent contacts."""
-    automation = get_object_or_404(Automation, id=automation_id, created_by=request.user)
+    ig_account = _get_active_ig_account(request)
+    if not ig_account:
+        messages.warning(request, 'Please connect an Instagram account first.')
+        return redirect('instagram:connect')
+
+    automation = get_object_or_404(Automation, id=automation_id, ig_account=ig_account)
     contacts = Contact.objects.filter(automation=automation).order_by('-created_at')[:50]
 
     return render(request, 'automations/detail.html', {
@@ -107,13 +152,17 @@ def automation_detail(request, automation_id):
 @login_required
 def automation_toggle(request, automation_id):
     """Activate or deactivate an automation."""
-    automation = get_object_or_404(Automation, id=automation_id, created_by=request.user)
+    ig_account = _get_active_ig_account(request)
+    if not ig_account:
+        messages.warning(request, 'Please connect an Instagram account first.')
+        return redirect('instagram:connect')
+
+    automation = get_object_or_404(Automation, id=automation_id, ig_account=ig_account)
 
     if not automation.is_active:
-        # Activating: check free plan limit
+        # Activating: check limit
         active_count = Automation.objects.filter(
             ig_account=automation.ig_account,
-            created_by=request.user,
             is_active=True,
         ).exclude(id=automation.id).count()
 
@@ -145,7 +194,12 @@ def automation_toggle(request, automation_id):
 @login_required
 def automation_delete(request, automation_id):
     """Delete an automation."""
-    automation = get_object_or_404(Automation, id=automation_id, created_by=request.user)
+    ig_account = _get_active_ig_account(request)
+    if not ig_account:
+        messages.warning(request, 'Please connect an Instagram account first.')
+        return redirect('instagram:connect')
+
+    automation = get_object_or_404(Automation, id=automation_id, ig_account=ig_account)
 
     if request.method == 'POST':
         name = automation.name
@@ -164,7 +218,12 @@ def automation_dry_run(request, automation_id):
     Dry run: simulate the automation with sample data.
     Shows what would happen without actually sending DMs.
     """
-    automation = get_object_or_404(Automation, id=automation_id, created_by=request.user)
+    ig_account = _get_active_ig_account(request)
+    if not ig_account:
+        messages.warning(request, 'Please connect an Instagram account first.')
+        return redirect('instagram:connect')
+
+    automation = get_object_or_404(Automation, id=automation_id, ig_account=ig_account)
 
     sample_comments = [
         {'username': 'test_user_1', 'text': 'I want the price please!', 'id': 'sample_001'},

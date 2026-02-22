@@ -14,6 +14,7 @@
                 class="btn btn-sm {% if automation.is_active %}btn-outline{% else %}btn-success{% endif %}">
                 {% if automation.is_active %}Deactivate{% else %}Activate{% endif %}
             </a>
+            <a href="{% url 'automations:edit' automation.id %}" class="btn btn-outline btn-sm">Edit</a>
             <a href="{% url 'automations:dry_run' automation.id %}" class="btn btn-outline btn-sm">Dry Run</a>
             <a href="{% url 'automations:delete' automation.id %}" class="btn btn-danger btn-sm">Delete</a>
         </div>

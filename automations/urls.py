@@ -8,6 +8,7 @@ urlpatterns = [
     path('', views.automation_list, name='list'),
     path('create/', views.automation_create, name='create'),
     path('<int:automation_id>/', views.automation_detail, name='detail'),
+    path('<int:automation_id>/edit/', views.automation_edit, name='edit'),
     path('<int:automation_id>/toggle/', views.automation_toggle, name='toggle'),
     path('<int:automation_id>/delete/', views.automation_delete, name='delete'),
     path('<int:automation_id>/dry-run/', views.automation_dry_run, name='dry_run'),
