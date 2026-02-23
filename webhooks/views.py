@@ -9,7 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
 from instagram.models import InstagramAccount
-from automations.engine import process_comment_event, process_story_event
+from automations.engine import process_comment_event, process_story_event, process_dm_event
 from .models import WebhookEventLog
 
 logger = logging.getLogger(__name__)
@@ -177,6 +177,26 @@ def _process_messaging_event(ig_user_id, msg_event, full_payload, ig_account):
     message = msg_event.get('message', {})
     message_text = message.get('text', '')
 
+    # Skip read receipts (not actual messages)
+    if 'read' in msg_event:
+        logger.info(f'Skipping read receipt from {sender_id}')
+        return
+
+    # Skip echo events (bot's own sent messages echoed back)
+    if message.get('is_echo'):
+        logger.info(f'Skipping echo message (bot own message)')
+        return
+
+    # Skip delivery events
+    if 'delivery' in msg_event:
+        logger.info(f'Skipping delivery event from {sender_id}')
+        return
+
+    # Skip if sender is the bot itself
+    if sender_id == ig_user_id:
+        logger.info(f'Skipping message from bot itself')
+        return
+
     # Determine if this is a story reply
     is_story_reply = 'story' in message.get('attachments', [{}])[0].get('type', '') if message.get('attachments') else False
 
@@ -212,7 +232,18 @@ def _process_messaging_event(ig_user_id, msg_event, full_payload, ig_account):
             event_log.error_message = str(e)
             event_log.save()
     else:
-        # Mark DM events as processed (optional: could trigger dm_reply automations)
-        event_log.processed = True
-        event_log.process_result = 'logged'
-        event_log.save()
+        try:
+            result = process_dm_event(
+                ig_user_id=ig_user_id,
+                sender_id=sender_id,
+                sender_username=sender.get('username', ''),
+                message_text=message_text,
+            )
+            event_log.processed = True
+            event_log.process_result = result.get('action', '')
+            event_log.error_message = result.get('error', '')
+            event_log.save()
+        except Exception as e:
+            logger.exception(f"Error processing DM event: {e}")
+            event_log.error_message = str(e)
+            event_log.save()

@@ -100,46 +100,180 @@ def process_comment_event(ig_user_id: str, comment_id: str, comment_text: str,
                     reply_sent = True
                     logger.info(f"Public reply sent to @{commenter_username}: {reply_msg}")
 
-        # Step 2: Send the DM
-        print(f"\n📩 DM → @{commenter_username}")
-        print(f"   Message: {automation.dm_message}")
-        result = send_dm(access_token, ig_user_id, comment_id, automation.dm_message, buttons=automation.dm_buttons or None)
-        print(f"   Response: {result}")
-        if 'error' not in result:
-            print(f"   ✅ DM SENT")
+        # Step 2: Send DM (or Opening Message if enabled)
+        if automation.opening_message_enabled and automation.opening_message:
+            # Per-user-per-reel check: has this user already been contacted for this reel?
+            existing_contact = Contact.objects.filter(
+                ig_account=ig_account,
+                automation=automation,
+                ig_user_id=commenter_id,
+                media_id=media_id,
+            ).order_by('-created_at').first()
+
+            if existing_contact and existing_contact.dm_sent:
+                # User already received the full DM on this reel — send DM directly again
+                print(f"\n📩 DM (repeat, already received) → @{commenter_username}")
+                print(f"   Message: {automation.dm_message}")
+                result = send_dm(access_token, ig_user_id, comment_id, automation.dm_message, buttons=automation.dm_buttons or None)
+                print(f"   Response: {result}")
+                if 'error' not in result:
+                    print(f"   ✅ DM SENT (repeat)")
+                else:
+                    print(f"   ❌ DM FAILED")
+                print(f"{'='*50}\n")
+
+                # Create new contact record for this comment
+                Contact.objects.create(
+                    ig_account=ig_account,
+                    automation=automation,
+                    ig_user_id=commenter_id,
+                    username=commenter_username,
+                    comment_id=comment_id,
+                    comment_text=comment_text,
+                    media_id=media_id,
+                    tag=automation.tag,
+                    dm_sent='error' not in result,
+                    dm_sent_at=timezone.now() if 'error' not in result else None,
+                    dm_error=result.get('error', ''),
+                )
+
+                automation.total_triggers += 1
+                if 'error' not in result:
+                    automation.total_dms_sent += 1
+                else:
+                    automation.total_failures += 1
+                automation.save()
+
+                return {
+                    'success': 'error' not in result,
+                    'action': 'dm_sent' if 'error' not in result else 'dm_failed',
+                    'error': result.get('error', ''),
+                }
+
+            elif existing_contact and existing_contact.opening_sent and not existing_contact.dm_sent:
+                # User got opening message but didn't click button — resend opening message with button
+                # Build quick reply button for opening message
+                opening_qr = [{'title': automation.opening_message_button_text or 'Send me the link', 'payload': 'SEND_LINK'}]
+                print(f"\n📩 OPENING MESSAGE (resend) → @{commenter_username}")
+                print(f"   Message: {automation.opening_message}")
+                result = send_dm(access_token, ig_user_id, comment_id, automation.opening_message, quick_replies=opening_qr)
+                print(f"   Response: {result}")
+                if 'error' not in result:
+                    print(f"   ✅ Opening Message RESENT")
+                else:
+                    print(f"   ❌ Opening Message FAILED")
+                print(f"{'='*50}\n")
+
+                # Create new contact record
+                Contact.objects.create(
+                    ig_account=ig_account,
+                    automation=automation,
+                    ig_user_id=commenter_id,
+                    username=commenter_username,
+                    comment_id=comment_id,
+                    comment_text=comment_text,
+                    media_id=media_id,
+                    tag=automation.tag,
+                    opening_sent=True,
+                    dm_sent=False,
+                    dm_error=result.get('error', ''),
+                )
+
+                automation.total_triggers += 1
+                if 'error' in result:
+                    automation.total_failures += 1
+                automation.save()
+
+                return {
+                    'success': 'error' not in result,
+                    'action': 'opening_resent' if 'error' not in result else 'opening_failed',
+                    'error': result.get('error', ''),
+                }
+
+            else:
+                # First time: send opening message
+                # Build quick reply button for opening message
+                opening_qr = [{'title': automation.opening_message_button_text or 'Send me the link', 'payload': 'SEND_LINK'}]
+                print(f"\n📩 OPENING MESSAGE → @{commenter_username}")
+                print(f"   Message: {automation.opening_message}")
+                result = send_dm(access_token, ig_user_id, comment_id, automation.opening_message, quick_replies=opening_qr)
+                print(f"   Response: {result}")
+                if 'error' not in result:
+                    print(f"   ✅ Opening Message SENT")
+                else:
+                    print(f"   ❌ Opening Message FAILED")
+                print(f"{'='*50}\n")
+
+                # Create contact with opening_sent=True (actual DM pending user response)
+                contact = Contact.objects.create(
+                    ig_account=ig_account,
+                    automation=automation,
+                    ig_user_id=commenter_id,
+                    username=commenter_username,
+                    comment_id=comment_id,
+                    comment_text=comment_text,
+                    media_id=media_id,
+                    tag=automation.tag,
+                    opening_sent=True,
+                    dm_sent=False,
+                    dm_error=result.get('error', ''),
+                )
+
+                automation.total_triggers += 1
+                if 'error' not in result:
+                    logger.info(f"Opening message sent to @{commenter_username} via automation '{automation.name}'")
+                else:
+                    automation.total_failures += 1
+                    logger.error(f"Opening message failed for @{commenter_username}: {result.get('error')}")
+                automation.save()
+
+                return {
+                    'success': 'error' not in result,
+                    'action': 'opening_sent' if 'error' not in result else 'opening_failed',
+                    'error': result.get('error', ''),
+                }
         else:
-            print(f"   ❌ DM FAILED")
-        print(f"{'='*50}\n")
+            # Standard flow: send DM directly
+            print(f"\n📩 DM → @{commenter_username}")
+            print(f"   Message: {automation.dm_message}")
+            result = send_dm(access_token, ig_user_id, comment_id, automation.dm_message, buttons=automation.dm_buttons or None)
+            print(f"   Response: {result}")
+            if 'error' not in result:
+                print(f"   ✅ DM SENT")
+            else:
+                print(f"   ❌ DM FAILED")
+            print(f"{'='*50}\n")
 
-        # Create contact record
-        contact = Contact.objects.create(
-            ig_account=ig_account,
-            automation=automation,
-            ig_user_id=commenter_id,
-            username=commenter_username,
-            comment_id=comment_id,
-            comment_text=comment_text,
-            tag=automation.tag,
-            dm_sent='error' not in result,
-            dm_sent_at=timezone.now() if 'error' not in result else None,
-            dm_error=result.get('error', ''),
-        )
+            # Create contact record
+            contact = Contact.objects.create(
+                ig_account=ig_account,
+                automation=automation,
+                ig_user_id=commenter_id,
+                username=commenter_username,
+                comment_id=comment_id,
+                comment_text=comment_text,
+                media_id=media_id,
+                tag=automation.tag,
+                dm_sent='error' not in result,
+                dm_sent_at=timezone.now() if 'error' not in result else None,
+                dm_error=result.get('error', ''),
+            )
 
-        # Update automation stats
-        automation.total_triggers += 1
-        if 'error' not in result:
-            automation.total_dms_sent += 1
-            logger.info(f"DM sent to @{commenter_username} via automation '{automation.name}'")
-        else:
-            automation.total_failures += 1
-            logger.error(f"DM failed for @{commenter_username}: {result.get('error')}")
-        automation.save()
+            # Update automation stats
+            automation.total_triggers += 1
+            if 'error' not in result:
+                automation.total_dms_sent += 1
+                logger.info(f"DM sent to @{commenter_username} via automation '{automation.name}'")
+            else:
+                automation.total_failures += 1
+                logger.error(f"DM failed for @{commenter_username}: {result.get('error')}")
+            automation.save()
 
-        return {
-            'success': 'error' not in result,
-            'action': 'dm_sent' if 'error' not in result else 'dm_failed',
-            'error': result.get('error', ''),
-        }
+            return {
+                'success': 'error' not in result,
+                'action': 'dm_sent' if 'error' not in result else 'dm_failed',
+                'error': result.get('error', ''),
+            }
 
     return {'success': True, 'action': 'no_match', 'error': ''}
 
@@ -209,6 +343,148 @@ def process_story_event(ig_user_id: str, sender_id: str, sender_username: str,
             'action': 'dm_sent' if 'error' not in result else 'dm_failed',
             'error': result.get('error', ''),
         }
+
+    return {'success': True, 'action': 'no_match', 'error': ''}
+
+
+def process_dm_event(ig_user_id: str, sender_id: str, sender_username: str,
+                     message_text: str = '') -> dict:
+    try:
+        ig_account = InstagramAccount.objects.get(ig_user_id=ig_user_id)
+    except InstagramAccount.DoesNotExist:
+        return {'success': False, 'action': 'skip', 'error': 'IG account not found'}
+
+    if not ig_account.is_token_valid:
+        _pause_all_automations(ig_account, 'Access token expired')
+        return {'success': False, 'action': 'paused', 'error': 'Token expired'}
+
+    # === Check for pending opening messages from comment_dm automations ===
+    # When a user received an opening message (from a comment automation),
+    # and they respond/click, we send the actual DM with the link.
+    pending_contacts = Contact.objects.filter(
+        ig_account=ig_account,
+        ig_user_id=sender_id,
+        opening_sent=True,
+        dm_sent=False,
+        automation__template_type='comment_dm',
+        automation__is_active=True,
+        automation__is_paused=False,
+    ).select_related('automation')
+
+    for contact in pending_contacts:
+        automation = contact.automation
+        if not automation:
+            continue
+
+        access_token = decrypt_token(ig_account.access_token_encrypted)
+        if not access_token:
+            _pause_all_automations(ig_account, 'Failed to decrypt access token')
+            return {'success': False, 'action': 'paused', 'error': 'Token decryption failed'}
+
+        print(f"\n{'='*50}")
+        print(f"📩 FOLLOW-UP DM (after opening) → @{sender_username}")
+        print(f"   Automation: '{automation.name}'")
+        print(f"   Message: {automation.dm_message}")
+        result = send_dm_by_user_id(access_token, ig_user_id, sender_id, automation.dm_message, buttons=automation.dm_buttons or None)
+        print(f"   Response: {result}")
+        if 'error' not in result:
+            print(f"   ✅ Follow-up DM SENT")
+        else:
+            print(f"   ❌ Follow-up DM FAILED")
+        print(f"{'='*50}\n")
+
+        # Update contact record
+        contact.dm_sent = 'error' not in result
+        contact.dm_sent_at = timezone.now() if 'error' not in result else None
+        contact.dm_error = result.get('error', '')
+        contact.save()
+
+        # Update automation stats
+        if 'error' not in result:
+            automation.total_dms_sent += 1
+        else:
+            automation.total_failures += 1
+        automation.save()
+
+        return {
+            'success': 'error' not in result,
+            'action': 'followup_dm_sent' if 'error' not in result else 'dm_failed',
+            'error': result.get('error', ''),
+        }
+
+    # === Standard dm_reply automations ===
+    automations = Automation.objects.filter(
+        ig_account=ig_account,
+        is_active=True,
+        is_paused=False,
+        template_type='dm_reply',
+    )
+
+    for automation in automations:
+        access_token = decrypt_token(ig_account.access_token_encrypted)
+        if not access_token:
+            _pause_all_automations(ig_account, 'Failed to decrypt access token')
+            return {'success': False, 'action': 'paused', 'error': 'Token decryption failed'}
+
+        already_contact = Contact.objects.filter(
+            ig_account=ig_account,
+            automation=automation,
+            ig_user_id=sender_id,
+        ).exists()
+
+        if automation.opening_message_enabled and not already_contact:
+            result = send_dm_by_user_id(access_token, ig_user_id, sender_id, automation.opening_message or automation.dm_message, buttons=automation.dm_buttons or None)
+            Contact.objects.create(
+                ig_account=ig_account,
+                automation=automation,
+                ig_user_id=sender_id,
+                username=sender_username,
+                comment_text=message_text,
+                tag=automation.tag,
+                dm_sent='error' not in result,
+                dm_sent_at=timezone.now() if 'error' not in result else None,
+                dm_error=result.get('error', ''),
+            )
+            automation.total_triggers += 1
+            if 'error' not in result:
+                automation.total_dms_sent += 1
+            else:
+                automation.total_failures += 1
+            automation.save()
+            return {
+                'success': 'error' not in result,
+                'action': 'opening_sent' if 'error' not in result else 'dm_failed',
+                'error': result.get('error', ''),
+            }
+
+        if automation.matches_keyword(message_text):
+            access_token = decrypt_token(ig_account.access_token_encrypted)
+            if not access_token:
+                _pause_all_automations(ig_account, 'Failed to decrypt access token')
+                return {'success': False, 'action': 'paused', 'error': 'Token decryption failed'}
+            result = send_dm_by_user_id(access_token, ig_user_id, sender_id, automation.dm_message, buttons=automation.dm_buttons or None)
+            Contact.objects.create(
+                ig_account=ig_account,
+                automation=automation,
+                ig_user_id=sender_id,
+                username=sender_username,
+                comment_text=message_text,
+                tag=automation.tag,
+                dm_sent='error' not in result,
+                dm_sent_at=timezone.now() if 'error' not in result else None,
+                dm_error=result.get('error', ''),
+            )
+            automation.total_triggers += 1
+            if 'error' not in result:
+                automation.total_dms_sent += 1
+            else:
+                automation.total_failures += 1
+            automation.save()
+            return {
+                'success': 'error' not in result,
+                'action': 'dm_sent' if 'error' not in result else 'dm_failed',
+                'error': result.get('error', ''),
+            }
 
     return {'success': True, 'action': 'no_match', 'error': ''}
 

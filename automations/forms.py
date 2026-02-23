@@ -35,7 +35,7 @@ class AutomationForm(forms.ModelForm):
 
     class Meta:
         model = Automation
-        fields = ['name', 'template_type', 'target_post_id', 'tag', 'dm_message', 'public_reply_enabled']
+        fields = ['name', 'template_type', 'target_post_id', 'tag', 'dm_message', 'public_reply_enabled', 'opening_message_enabled', 'opening_message', 'opening_message_button_text']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-input',
@@ -56,6 +56,16 @@ class AutomationForm(forms.ModelForm):
                 'placeholder': 'Hey! Thanks for your comment. Here\'s the link...',
                 'maxlength': '1000',
             }),
+            'opening_message': forms.TextInput(attrs={
+                'class': 'form-input',
+                'placeholder': 'Hey there! Click below and I\'ll send the link ✨',
+                'maxlength': '1000',
+            }),
+            'opening_message_button_text': forms.TextInput(attrs={
+                'class': 'form-input',
+                'placeholder': 'Send me the link',
+                'maxlength': '100',
+            }),
         }
 
     def clean_keywords(self):
@@ -72,6 +82,14 @@ class AutomationForm(forms.ModelForm):
         if len(msg) > settings.FREE_PLAN_MAX_DM_LENGTH:
             raise forms.ValidationError(
                 f'DM message must be {settings.FREE_PLAN_MAX_DM_LENGTH} characters or fewer.'
+            )
+        return msg
+
+    def clean_opening_message(self):
+        msg = self.cleaned_data.get('opening_message', '').strip()
+        if len(msg) > settings.FREE_PLAN_MAX_DM_LENGTH:
+            raise forms.ValidationError(
+                f'Opening message must be {settings.FREE_PLAN_MAX_DM_LENGTH} characters or fewer.'
             )
         return msg
 

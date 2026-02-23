@@ -72,6 +72,24 @@ class Automation(models.Model):
         """Set DM buttons from a Python list of dicts."""
         self.dm_buttons_json = json.dumps(value)
 
+    # Opening message (shown on first DM)
+    opening_message_enabled = models.BooleanField(
+        default=False,
+        help_text="Whether to send an opening message on first DM"
+    )
+    opening_message = models.CharField(
+        max_length=1000,
+        blank=True,
+        default='',
+        help_text="Opening message text for first-time DMs"
+    )
+    opening_message_button_text = models.CharField(
+        max_length=100,
+        blank=True,
+        default='Send me the link',
+        help_text="CTA button text shown in the opening message"
+    )
+
     # Public reply to comments
     public_reply_enabled = models.BooleanField(
         default=False,
@@ -171,11 +189,13 @@ class Contact(models.Model):
     username = models.CharField(max_length=150, blank=True, default='')
     comment_id = models.CharField(max_length=200, blank=True, default='')
     comment_text = models.TextField(blank=True, default='')
+    media_id = models.CharField(max_length=200, blank=True, default='', help_text="Media/reel ID this contact was triggered from")
 
     # Tag from automation
     tag = models.CharField(max_length=50, blank=True, default='')
 
     # DM status
+    opening_sent = models.BooleanField(default=False, help_text="Whether only the opening message was sent (actual DM pending)")
     dm_sent = models.BooleanField(default=False)
     dm_sent_at = models.DateTimeField(null=True, blank=True)
     dm_error = models.TextField(blank=True, default='')

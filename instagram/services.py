@@ -214,7 +214,7 @@ def reply_to_comment(access_token: str, comment_id: str, message: str) -> dict:
 
 # ─── Messaging (DM) ─────────────────────────────────────────────────
 
-def send_dm(access_token: str, ig_user_id: str, recipient_id: str, message: str, buttons: list = None) -> dict:
+def send_dm(access_token: str, ig_user_id: str, recipient_id: str, message: str, buttons: list = None, quick_replies: list = None) -> dict:
     """
     Send a DM to a user using the Instagram Messaging API.
     If buttons are provided, sends as a CTA button template.
@@ -256,6 +256,25 @@ def send_dm(access_token: str, ig_user_id: str, recipient_id: str, message: str,
             'access_token': access_token,
         }
         print(f"   📎 Sending as CTA with {len(cta_buttons)} button(s): {[b['title'] for b in cta_buttons]}")
+    elif quick_replies:
+        # Send text with quick reply buttons (tappable pills below the message)
+        qr_list = []
+        for qr in quick_replies:
+            qr_list.append({
+                'content_type': 'text',
+                'title': qr.get('title', 'Send me the link'),
+                'payload': qr.get('payload', 'SEND_LINK'),
+            })
+
+        payload = {
+            'recipient': {'comment_id': recipient_id},
+            'message': {
+                'text': message,
+                'quick_replies': qr_list,
+            },
+            'access_token': access_token,
+        }
+        print(f"   🔘 Sending with {len(qr_list)} quick reply(s): {[q['title'] for q in qr_list]}")
     else:
         # Send as plain text
         payload = {
@@ -274,17 +293,36 @@ def send_dm(access_token: str, ig_user_id: str, recipient_id: str, message: str,
     return resp.json()
 
 
-def send_dm_by_user_id(access_token: str, ig_user_id: str, recipient_user_id: str, message: str) -> dict:
-    """
-    Send a DM using recipient's Instagram-scoped user ID (IGSID).
-    Used for story replies and DM responses.
-    """
+def send_dm_by_user_id(access_token: str, ig_user_id: str, recipient_user_id: str, message: str, buttons: list = None) -> dict:
     url = f'{GRAPH_API_BASE}/{ig_user_id}/messages'
-    payload = {
-        'recipient': {'id': recipient_user_id},
-        'message': {'text': message},
-        'access_token': access_token,
-    }
+    if buttons:
+        cta_buttons = []
+        for btn in buttons:
+            cta_buttons.append({
+                'type': 'web_url',
+                'url': btn.get('url', ''),
+                'title': btn.get('title', 'Open Link'),
+            })
+        payload = {
+            'recipient': {'id': recipient_user_id},
+            'message': {
+                'attachment': {
+                    'type': 'template',
+                    'payload': {
+                        'template_type': 'button',
+                        'text': message,
+                        'buttons': cta_buttons
+                    }
+                }
+            },
+            'access_token': access_token,
+        }
+    else:
+        payload = {
+            'recipient': {'id': recipient_user_id},
+            'message': {'text': message},
+            'access_token': access_token,
+        }
 
     resp = requests.post(url, json=payload, timeout=30)
 

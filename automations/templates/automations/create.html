@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% block title %}{% if is_edit %}Edit Automation{% else %}Instant DM from Comments{% endif %}{% endblock %}
 
 {% block content %}
@@ -293,14 +293,36 @@
     <div class="premium-section">
         <div class="premium-toggle">
             <span class="premium-label">Opening Message</span>
-            <label class="toggle disabled"><input type="checkbox" disabled><span class="toggle-slider"></span></label>
+            <label class="toggle"><input type="checkbox" name="opening_message_enabled" id="openingMessageToggle" {% if form.opening_message_enabled.value %}checked{% endif %} onchange="toggleOpeningMessage()"><span class="toggle-slider"></span></label>
+        </div>
+        <div id="openingMessageSection" style="{% if not form.opening_message_enabled.value %}display:none;{% endif %}margin:10px 0 16px;">
+            <input type="text" class="form-input" name="opening_message" id="openingMessageInput"
+                value="{{ form.opening_message.value|default:'' }}"
+                placeholder="Hey there! Click below and I'll send the link ✨" maxlength="1000"
+                oninput="updateOpeningPreview()" style="margin-bottom:8px;">
+            <div class="form-help" style="margin-bottom:8px;">Shown when someone comments — they get this message first.
+                When they respond, the actual DM with your link is sent.</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                <label style="font-size:0.85rem;color:rgba(255,255,255,0.6);white-space:nowrap;">Button Text:</label>
+                <input type="text" class="form-input" name="opening_message_button_text" id="openingBtnText"
+                    value="{{ form.opening_message_button_text.value|default:'Send me the link' }}"
+                    placeholder="Send me the link" maxlength="100" oninput="updateOpeningPreview()" style="flex:1;">
+            </div>
+            <div id="openingPreview"
+                style="margin-top:8px;padding:12px;border:1px dashed rgba(255,255,255,0.2);border-radius:8px;font-size:0.9rem;">
+                <div id="openingPreviewText">{{ form.opening_message.value|default:'Hey there! Click below and I\'ll
+                    send the link ✨' }}</div>
+                <div id="openingPreviewBtn"
+                    style="margin-top:8px;padding:8px 16px;background:rgba(88,101,242,0.2);border:1px solid rgba(88,101,242,0.4);border-radius:8px;font-size:0.8rem;color:#5865f2;text-align:center;cursor:default;">
+                    🔗 {{ form.opening_message_button_text.value|default:'Send me the link' }}
+                </div>
+            </div>
         </div>
         <div class="premium-toggle">
             <span class="premium-label">Public reply to comments</span>
             <label class="toggle"><input type="checkbox" name="public_reply_enabled" id="publicReplyToggle" {% if form.public_reply_enabled.value %}checked{% endif %} onchange="togglePublicReply()"><span class="toggle-slider"></span></label>
         </div>
-        <div class="public-reply-section" id="publicReplySection"
-            style="{% if not form.public_reply_enabled.value %}display:none;{% endif %}">
+        <div class="public-reply-section" id="publicReplySection" style="{% if not form.public_reply_enabled.value %}display:none;{% endif %}">
             <p class="premium-desc" style="margin-bottom:10px;">A variant will be selected at random to avoid
                 repetition.</p>
             <div id="replyVariants">
@@ -617,6 +639,18 @@
                 }
             }
         });
+    }
+
+    // Opening Message toggle and preview
+    function toggleOpeningMessage() {
+        var checked = document.getElementById('openingMessageToggle').checked;
+        document.getElementById('openingMessageSection').style.display = checked ? '' : 'none';
+    }
+    function updateOpeningPreview() {
+        var val = document.getElementById('openingMessageInput').value.trim();
+        document.getElementById('openingPreviewText').textContent = val || "Hey there! Click below and I'll send the link ✨";
+        var btnText = document.getElementById('openingBtnText').value.trim();
+        document.getElementById('openingPreviewBtn').textContent = '🔗 ' + (btnText || 'Send me the link');
     }
 </script>
 {% endblock %}
