@@ -180,6 +180,36 @@ def fetch_user_media(access_token: str, ig_user_id: str, limit: int = 25) -> lis
     return resp.json().get('data', [])
 
 
+def check_user_follows(access_token: str, user_id: str) -> bool:
+    """
+    Check if a user follows the business account.
+    Uses the is_user_follow_business field on the Instagram User node.
+
+    Args:
+        access_token: Long-lived access token of the business account
+        user_id: The scoped user ID to check
+
+    Returns: True if the user follows the business, False otherwise
+    """
+    try:
+        resp = requests.get(f'{GRAPH_API_BASE}/{user_id}', params={
+            'fields': 'is_user_follow_business',
+            'access_token': access_token,
+        }, timeout=30)
+
+        if resp.status_code != 200:
+            logger.error(f"Follow check failed: {resp.status_code} — {resp.text}")
+            return False
+
+        data = resp.json()
+        follows = data.get('is_user_follow_business', False)
+        logger.info(f"Follow check for user {user_id}: {follows}")
+        return follows
+    except Exception as e:
+        logger.exception(f"Error checking follow status for user {user_id}: {e}")
+        return False
+
+
 # ─── Comment Reply ───────────────────────────────────────────────────
 
 def reply_to_comment(access_token: str, comment_id: str, message: str) -> dict:
@@ -293,7 +323,7 @@ def send_dm(access_token: str, ig_user_id: str, recipient_id: str, message: str,
     return resp.json()
 
 
-def send_dm_by_user_id(access_token: str, ig_user_id: str, recipient_user_id: str, message: str, buttons: list = None) -> dict:
+def send_dm_by_user_id(access_token: str, ig_user_id: str, recipient_user_id: str, message: str, buttons: list = None, quick_replies: list = None) -> dict:
     url = f'{GRAPH_API_BASE}/{ig_user_id}/messages'
     if buttons:
         cta_buttons = []
@@ -317,6 +347,23 @@ def send_dm_by_user_id(access_token: str, ig_user_id: str, recipient_user_id: st
             },
             'access_token': access_token,
         }
+    elif quick_replies:
+        qr_list = []
+        for qr in quick_replies:
+            qr_list.append({
+                'content_type': 'text',
+                'title': qr.get('title', ''),
+                'payload': qr.get('payload', ''),
+            })
+        payload = {
+            'recipient': {'id': recipient_user_id},
+            'message': {
+                'text': message,
+                'quick_replies': qr_list,
+            },
+            'access_token': access_token,
+        }
+        print(f"   🔘 Sending with {len(qr_list)} quick reply(s): {[q['title'] for q in qr_list]}")
     else:
         payload = {
             'recipient': {'id': recipient_user_id},

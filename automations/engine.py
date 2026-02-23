@@ -5,7 +5,7 @@ Handles comment → keyword match → send DM → log contact.
 import logging
 from django.utils import timezone
 from instagram.models import InstagramAccount
-from instagram.services import decrypt_token, send_dm, send_dm_by_user_id, reply_to_comment
+from instagram.services import decrypt_token, send_dm, send_dm_by_user_id, reply_to_comment, check_user_follows
 from .models import Automation, Contact
 
 logger = logging.getLogger(__name__)
@@ -100,7 +100,21 @@ def process_comment_event(ig_user_id: str, comment_id: str, comment_text: str,
                     reply_sent = True
                     logger.info(f"Public reply sent to @{commenter_username}: {reply_msg}")
 
-        # Step 2: Send DM (or Opening Message if enabled)
+        # Step 2: Follow check (if enabled) — check BEFORE sending DM
+        if automation.ask_follow_enabled and automation.ask_follow_message:
+            user_follows = check_user_follows(access_token, commenter_id)
+            print(f"\n🔍 FOLLOW CHECK → @{commenter_username}: {'✅ Following' if user_follows else '❌ Not following'}")
+
+            if not user_follows:
+                # User doesn't follow — send follow-ask message instead of DM
+                return _send_follow_ask_message(
+                    access_token, ig_user_id, commenter_id, commenter_username,
+                    ig_account, None, automation, is_resend=False,
+                    comment_id=comment_id, comment_text=comment_text,
+                    media_id=media_id,
+                )
+
+        # Step 3: Send DM (or Opening Message if enabled)
         if automation.opening_message_enabled and automation.opening_message:
             # Per-user-per-reel check: has this user already been contacted for this reel?
             existing_contact = Contact.objects.filter(
@@ -358,6 +372,45 @@ def process_dm_event(ig_user_id: str, sender_id: str, sender_username: str,
         _pause_all_automations(ig_account, 'Access token expired')
         return {'success': False, 'action': 'paused', 'error': 'Token expired'}
 
+    # === Check for pending follow-check contacts (from comment-stage follow check) ===
+    follow_pending = Contact.objects.filter(
+        ig_account=ig_account,
+        ig_user_id=sender_id,
+        follow_check_sent=True,
+        follow_verified=False,
+        dm_sent=False,
+        automation__template_type='comment_dm',
+        automation__is_active=True,
+        automation__is_paused=False,
+    ).select_related('automation').order_by('-created_at').first()
+
+    if follow_pending:
+        automation = follow_pending.automation
+        access_token = decrypt_token(ig_account.access_token_encrypted)
+        if not access_token:
+            _pause_all_automations(ig_account, 'Failed to decrypt access token')
+            return {'success': False, 'action': 'paused', 'error': 'Token decryption failed'}
+
+        print(f"\n{'='*50}")
+        print(f"🔍 FOLLOW CHECK (DM response) → @{sender_username}")
+        print(f"   Automation: '{automation.name}'")
+
+        user_follows = check_user_follows(access_token, sender_id)
+        print(f"   Follows: {user_follows}")
+
+        if user_follows:
+            # User follows! Send actual DM
+            return _send_actual_dm_after_follow(
+                access_token, ig_user_id, sender_id, sender_username,
+                follow_pending, automation
+            )
+        else:
+            # User doesn't follow, resend the follow-ask message
+            return _send_follow_ask_message(
+                access_token, ig_user_id, sender_id, sender_username,
+                ig_account, follow_pending, automation, is_resend=True
+            )
+
     # === Check for pending opening messages from comment_dm automations ===
     # When a user received an opening message (from a comment automation),
     # and they respond/click, we send the actual DM with the link.
@@ -381,6 +434,7 @@ def process_dm_event(ig_user_id: str, sender_id: str, sender_username: str,
             _pause_all_automations(ig_account, 'Failed to decrypt access token')
             return {'success': False, 'action': 'paused', 'error': 'Token decryption failed'}
 
+        # Send actual DM directly (user responded to opening message)
         print(f"\n{'='*50}")
         print(f"📩 FOLLOW-UP DM (after opening) → @{sender_username}")
         print(f"   Automation: '{automation.name}'")
@@ -393,13 +447,11 @@ def process_dm_event(ig_user_id: str, sender_id: str, sender_username: str,
             print(f"   ❌ Follow-up DM FAILED")
         print(f"{'='*50}\n")
 
-        # Update contact record
         contact.dm_sent = 'error' not in result
         contact.dm_sent_at = timezone.now() if 'error' not in result else None
         contact.dm_error = result.get('error', '')
         contact.save()
 
-        # Update automation stats
         if 'error' not in result:
             automation.total_dms_sent += 1
         else:
@@ -487,6 +539,115 @@ def process_dm_event(ig_user_id: str, sender_id: str, sender_username: str,
             }
 
     return {'success': True, 'action': 'no_match', 'error': ''}
+
+
+def _send_follow_ask_message(access_token, ig_user_id, sender_id, sender_username,
+                              ig_account, contact, automation, is_resend=False,
+                              comment_id='', comment_text='', media_id=''):
+    """Send 'please follow me' message with Visit Profile CTA button + I'm following quick reply.
+    
+    Called from comment stage (contact=None, creates new contact) or DM stage (contact exists).
+    """
+    tag = 'resend' if is_resend else 'first'
+    print(f"\n{'='*50}")
+    print(f"🔔 FOLLOW-ASK ({tag}) → @{sender_username}")
+    print(f"   Automation: '{automation.name}'")
+    print(f"   Message: {automation.ask_follow_message}")
+
+    # Message 1: CTA card button for "Visit Profile" (opens profile URL, card-style like "Send me the link")
+    profile_url = f"https://instagram.com/{ig_account.username}"
+    visit_btn = [{'title': '🌟 Visit Profile', 'url': profile_url}]
+    send_dm_by_user_id(
+        access_token, ig_user_id, sender_id,
+        automation.ask_follow_message,
+        buttons=visit_btn
+    )
+
+    # Message 2: Quick reply for "I'm following" — this triggers the follow check when user taps it
+    follow_qr = [{'title': "✅ I'm following", 'payload': 'IM_FOLLOWING'}]
+    result = send_dm_by_user_id(
+        access_token, ig_user_id, sender_id,
+        "Once you've followed, tap the button below 👇",
+        quick_replies=follow_qr
+    )
+
+    print(f"   Response: {result}")
+    if 'error' not in result:
+        print(f"   ✅ Follow-ask message SENT")
+    else:
+        print(f"   ❌ Follow-ask message FAILED")
+    print(f"{'='*50}\n")
+
+    # Create or update contact record
+    if contact is None:
+        # Called from comment stage — create new contact
+        contact = Contact.objects.create(
+            ig_account=ig_account,
+            automation=automation,
+            ig_user_id=sender_id,
+            username=sender_username,
+            comment_id=comment_id,
+            comment_text=comment_text,
+            media_id=media_id,
+            tag=automation.tag,
+            follow_check_sent=True,
+            dm_sent=False,
+            dm_error=result.get('error', ''),
+        )
+    else:
+        # Called from DM stage — update existing contact
+        contact.follow_check_sent = True
+        contact.dm_error = result.get('error', '')
+        contact.save()
+
+    automation.total_triggers += 1
+    if 'error' in result:
+        automation.total_failures += 1
+    automation.save()
+
+    return {
+        'success': 'error' not in result,
+        'action': f'follow_ask_{"resent" if is_resend else "sent"}' if 'error' not in result else 'follow_ask_failed',
+        'error': result.get('error', ''),
+    }
+
+
+def _send_actual_dm_after_follow(access_token, ig_user_id, sender_id, sender_username,
+                                  contact, automation):
+    """Send the actual DM after user has been verified as a follower."""
+    print(f"   ✅ User follows! Sending actual DM...")
+    print(f"   Message: {automation.dm_message}")
+
+    result = send_dm_by_user_id(
+        access_token, ig_user_id, sender_id,
+        automation.dm_message, buttons=automation.dm_buttons or None
+    )
+    print(f"   Response: {result}")
+    if 'error' not in result:
+        print(f"   ✅ Actual DM SENT (after follow verification)")
+    else:
+        print(f"   ❌ Actual DM FAILED")
+    print(f"{'='*50}\n")
+
+    # Update contact record
+    contact.follow_verified = True
+    contact.dm_sent = 'error' not in result
+    contact.dm_sent_at = timezone.now() if 'error' not in result else None
+    contact.dm_error = result.get('error', '')
+    contact.save()
+
+    # Update automation stats
+    if 'error' not in result:
+        automation.total_dms_sent += 1
+    else:
+        automation.total_failures += 1
+    automation.save()
+
+    return {
+        'success': 'error' not in result,
+        'action': 'followup_dm_sent' if 'error' not in result else 'dm_failed',
+        'error': result.get('error', ''),
+    }
 
 
 def models_Q_target_post(media_id: str):

@@ -182,6 +182,16 @@ def _process_messaging_event(ig_user_id, msg_event, full_payload, ig_account):
         logger.info(f'Skipping read receipt from {sender_id}')
         return
 
+    # Skip message_edit events (edits to existing messages, not new messages)
+    if 'message_edit' in msg_event:
+        logger.info(f'Skipping message_edit event from {sender_id}')
+        return
+
+    # Skip reaction events
+    if 'reaction' in msg_event:
+        logger.info(f'Skipping reaction event from {sender_id}')
+        return
+
     # Skip echo events (bot's own sent messages echoed back)
     if message.get('is_echo'):
         logger.info(f'Skipping echo message (bot own message)')

@@ -90,6 +90,18 @@ class Automation(models.Model):
         help_text="CTA button text shown in the opening message"
     )
 
+    # Ask to follow before sending DM
+    ask_follow_enabled = models.BooleanField(
+        default=False,
+        help_text="Whether to ask the user to follow before sending the actual DM"
+    )
+    ask_follow_message = models.CharField(
+        max_length=1000,
+        blank=True,
+        default="Oh no! It seems you're not following me 😿. It would really mean a lot if you visit my profile and hit the follow button 🥳. Once you have done that, click on the 'I'm following' button below and you will get the link ✨.",
+        help_text="Message shown to non-followers asking them to follow"
+    )
+
     # Public reply to comments
     public_reply_enabled = models.BooleanField(
         default=False,
@@ -196,6 +208,8 @@ class Contact(models.Model):
 
     # DM status
     opening_sent = models.BooleanField(default=False, help_text="Whether only the opening message was sent (actual DM pending)")
+    follow_check_sent = models.BooleanField(default=False, help_text="Whether the 'please follow' message was sent")
+    follow_verified = models.BooleanField(default=False, help_text="Whether the user passed the follow verification")
     dm_sent = models.BooleanField(default=False)
     dm_sent_at = models.DateTimeField(null=True, blank=True)
     dm_error = models.TextField(blank=True, default='')

@@ -35,7 +35,7 @@ class AutomationForm(forms.ModelForm):
 
     class Meta:
         model = Automation
-        fields = ['name', 'template_type', 'target_post_id', 'tag', 'dm_message', 'public_reply_enabled', 'opening_message_enabled', 'opening_message', 'opening_message_button_text']
+        fields = ['name', 'template_type', 'target_post_id', 'tag', 'dm_message', 'public_reply_enabled', 'opening_message_enabled', 'opening_message', 'opening_message_button_text', 'ask_follow_enabled', 'ask_follow_message']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-input',
@@ -66,6 +66,12 @@ class AutomationForm(forms.ModelForm):
                 'placeholder': 'Send me the link',
                 'maxlength': '100',
             }),
+            'ask_follow_message': forms.Textarea(attrs={
+                'class': 'form-input',
+                'placeholder': "Oh no! It seems you're not following me \ud83d\ude3f...",
+                'maxlength': '1000',
+                'rows': 4,
+            }),
         }
 
     def clean_keywords(self):
@@ -90,6 +96,14 @@ class AutomationForm(forms.ModelForm):
         if len(msg) > settings.FREE_PLAN_MAX_DM_LENGTH:
             raise forms.ValidationError(
                 f'Opening message must be {settings.FREE_PLAN_MAX_DM_LENGTH} characters or fewer.'
+            )
+        return msg
+
+    def clean_ask_follow_message(self):
+        msg = self.cleaned_data.get('ask_follow_message', '').strip()
+        if len(msg) > settings.FREE_PLAN_MAX_DM_LENGTH:
+            raise forms.ValidationError(
+                f'Ask-to-follow message must be {settings.FREE_PLAN_MAX_DM_LENGTH} characters or fewer.'
             )
         return msg
 

@@ -295,7 +295,8 @@
             <span class="premium-label">Opening Message</span>
             <label class="toggle"><input type="checkbox" name="opening_message_enabled" id="openingMessageToggle" {% if form.opening_message_enabled.value %}checked{% endif %} onchange="toggleOpeningMessage()"><span class="toggle-slider"></span></label>
         </div>
-        <div id="openingMessageSection" style="{% if not form.opening_message_enabled.value %}display:none;{% endif %}margin:10px 0 16px;">
+        <div id="openingMessageSection"
+            style="{% if not form.opening_message_enabled.value %}display:none;{% endif %}margin:10px 0 16px;">
             <input type="text" class="form-input" name="opening_message" id="openingMessageInput"
                 value="{{ form.opening_message.value|default:'' }}"
                 placeholder="Hey there! Click below and I'll send the link ✨" maxlength="1000"
@@ -322,7 +323,8 @@
             <span class="premium-label">Public reply to comments</span>
             <label class="toggle"><input type="checkbox" name="public_reply_enabled" id="publicReplyToggle" {% if form.public_reply_enabled.value %}checked{% endif %} onchange="togglePublicReply()"><span class="toggle-slider"></span></label>
         </div>
-        <div class="public-reply-section" id="publicReplySection" style="{% if not form.public_reply_enabled.value %}display:none;{% endif %}">
+        <div class="public-reply-section" id="publicReplySection"
+            style="{% if not form.public_reply_enabled.value %}display:none;{% endif %}">
             <p class="premium-desc" style="margin-bottom:10px;">A variant will be selected at random to avoid
                 repetition.</p>
             <div id="replyVariants">
@@ -340,7 +342,35 @@
         </div>
         <div class="premium-toggle">
             <span class="premium-label">Ask to follow before sending DM</span>
-            <label class="toggle disabled"><input type="checkbox" disabled><span class="toggle-slider"></span></label>
+            <label class="toggle"><input type="checkbox" name="ask_follow_enabled" id="askFollowToggle" {% if form.ask_follow_enabled.value %}checked{% endif %} onchange="toggleAskFollow()"><span class="toggle-slider"></span></label>
+        </div>
+        <div id="askFollowSection"
+            style="{% if not form.ask_follow_enabled.value %}display:none;{% endif %}margin:10px 0 16px;">
+            <div class="form-help" style="margin-bottom:8px;">Ask for follow before sending DM</div>
+            <div style="position:relative;">
+                <textarea name="ask_follow_message" id="askFollowMessage" class="form-input" rows="4" maxlength="1000"
+                    oninput="updateAskFollowPreview()"
+                    placeholder="Oh no! It seems you're not following me 😿...">{{ form.ask_follow_message.value|default:"Oh no! It seems you're not following me 😿. It would really mean a lot if you visit my profile and hit the follow button 🥳. Once you have done that, click on the 'I'm following' button below and you will get the link ✨." }}</textarea>
+                <div style="text-align:right;font-size:0.75rem;color:rgba(255,255,255,0.4);margin-top:2px;">
+                    <span id="askFollowCharCount">0</span>/1000
+                </div>
+            </div>
+            <div id="askFollowPreview"
+                style="margin-top:10px;padding:14px;border:1px dashed rgba(255,255,255,0.2);border-radius:10px;font-size:0.9rem;">
+                <div id="askFollowPreviewText" style="line-height:1.5;"></div>
+                <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px;">
+                    <div
+                        style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(88,101,242,0.15);border:1px solid rgba(88,101,242,0.3);border-radius:8px;font-size:0.8rem;color:#5865f2;cursor:default;">
+                        <span>🌟</span> <span>Visit Profile</span>
+                        <span style="margin-left:auto;opacity:0.5;">✏️</span>
+                    </div>
+                    <div
+                        style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(46,204,113,0.15);border:1px solid rgba(46,204,113,0.3);border-radius:8px;font-size:0.8rem;color:#2ecc71;cursor:default;">
+                        <span>🟢</span> <span>I'm following ✓</span>
+                        <span style="margin-left:auto;opacity:0.5;">✏️</span>
+                    </div>
+                </div>
+            </div>
         </div>
         <div class="premium-divider"></div>
         <div class="premium-advanced">
@@ -652,5 +682,26 @@
         var btnText = document.getElementById('openingBtnText').value.trim();
         document.getElementById('openingPreviewBtn').textContent = '🔗 ' + (btnText || 'Send me the link');
     }
+
+    // Ask to Follow toggle and preview
+    function toggleAskFollow() {
+        var checked = document.getElementById('askFollowToggle').checked;
+        document.getElementById('askFollowSection').style.display = checked ? '' : 'none';
+        if (checked) updateAskFollowPreview();
+    }
+    function updateAskFollowPreview() {
+        var ta = document.getElementById('askFollowMessage');
+        var val = ta.value.trim();
+        document.getElementById('askFollowPreviewText').textContent = val || "Oh no! It seems you're not following me \ud83d\ude3f...";
+        document.getElementById('askFollowCharCount').textContent = ta.value.length;
+    }
+    // Init ask follow preview on load
+    var afTa = document.getElementById('askFollowMessage');
+    if (afTa) {
+        document.getElementById('askFollowCharCount').textContent = afTa.value.length;
+        var afPreview = document.getElementById('askFollowPreviewText');
+        if (afPreview) afPreview.textContent = afTa.value.trim() || "Oh no! It seems you're not following me \ud83d\ude3f...";
+    }
+
 </script>
 {% endblock %}
