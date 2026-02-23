@@ -12,6 +12,13 @@ from .models import Automation, Contact
 from .forms import AutomationForm
 
 
+def _get_sibling_accounts(ig_account):
+    """Get all InstagramAccount records with the same username (for cross-login sharing)."""
+    if ig_account and ig_account.username:
+        return InstagramAccount.objects.filter(username=ig_account.username)
+    return InstagramAccount.objects.filter(id=ig_account.id) if ig_account else InstagramAccount.objects.none()
+
+
 def _get_active_ig_account(request):
     """Get the currently active Instagram account for this user."""
     account_id = request.session.get('active_ig_account_id')
@@ -40,7 +47,9 @@ def automation_list(request):
         messages.warning(request, 'Please connect an Instagram account first.')
         return redirect('instagram:connect')
 
-    automations = Automation.objects.filter(ig_account=ig_account)
+    # Show automations from ALL accounts with the same IG username
+    sibling_accounts = _get_sibling_accounts(ig_account)
+    automations = Automation.objects.filter(ig_account__in=sibling_accounts)
 
     return render(request, 'automations/list.html', {
         'automations': automations,
@@ -57,8 +66,9 @@ def automation_create(request):
         return redirect('instagram:connect')
 
     # Check limit
+    sibling_accounts = _get_sibling_accounts(ig_account)
     active_count = Automation.objects.filter(
-        ig_account=ig_account, is_active=True
+        ig_account__in=sibling_accounts, is_active=True
     ).count()
 
     if request.method == 'POST':
@@ -100,8 +110,9 @@ def automation_edit(request, automation_id):
         messages.warning(request, 'Please connect an Instagram account first.')
         return redirect('instagram:connect')
 
+    sibling_accounts = _get_sibling_accounts(ig_account)
     automation = get_object_or_404(
-        Automation, id=automation_id, ig_account=ig_account
+        Automation, id=automation_id, ig_account__in=sibling_accounts
     )
 
     if request.method == 'POST':
@@ -140,7 +151,8 @@ def automation_detail(request, automation_id):
         messages.warning(request, 'Please connect an Instagram account first.')
         return redirect('instagram:connect')
 
-    automation = get_object_or_404(Automation, id=automation_id, ig_account=ig_account)
+    sibling_accounts = _get_sibling_accounts(ig_account)
+    automation = get_object_or_404(Automation, id=automation_id, ig_account__in=sibling_accounts)
     contacts = Contact.objects.filter(automation=automation).order_by('-created_at')[:50]
 
     return render(request, 'automations/detail.html', {
@@ -157,7 +169,8 @@ def automation_toggle(request, automation_id):
         messages.warning(request, 'Please connect an Instagram account first.')
         return redirect('instagram:connect')
 
-    automation = get_object_or_404(Automation, id=automation_id, ig_account=ig_account)
+    sibling_accounts = _get_sibling_accounts(ig_account)
+    automation = get_object_or_404(Automation, id=automation_id, ig_account__in=sibling_accounts)
 
     if not automation.is_active:
         # Activating: check limit
@@ -199,7 +212,8 @@ def automation_delete(request, automation_id):
         messages.warning(request, 'Please connect an Instagram account first.')
         return redirect('instagram:connect')
 
-    automation = get_object_or_404(Automation, id=automation_id, ig_account=ig_account)
+    sibling_accounts = _get_sibling_accounts(ig_account)
+    automation = get_object_or_404(Automation, id=automation_id, ig_account__in=sibling_accounts)
 
     if request.method == 'POST':
         name = automation.name
@@ -223,7 +237,8 @@ def automation_dry_run(request, automation_id):
         messages.warning(request, 'Please connect an Instagram account first.')
         return redirect('instagram:connect')
 
-    automation = get_object_or_404(Automation, id=automation_id, ig_account=ig_account)
+    sibling_accounts = _get_sibling_accounts(ig_account)
+    automation = get_object_or_404(Automation, id=automation_id, ig_account__in=sibling_accounts)
 
     sample_comments = [
         {'username': 'test_user_1', 'text': 'I want the price please!', 'id': 'sample_001'},
