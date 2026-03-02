@@ -22,7 +22,7 @@ def connect_instagram(request):
     state = str(uuid.uuid4())
     request.session['oauth_state'] = state
     # oauth_url = services.get_oauth_url(state=state)
-    oauth_url = "https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=3334676316687781&redirect_uri=https://60a6-2401-4900-8fec-f3f8-702b-5393-c450-19de.ngrok-free.app/instagram/callback/&response_type=code&scope=instagram_business_basic%2Cinstagram_business_manage_messages%2Cinstagram_business_manage_comments%2Cinstagram_business_content_publish%2Cinstagram_business_manage_insights"
+    oauth_url = "https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=3334676316687781&redirect_uri=https://instagram.joingy.site/instagram/callback/&response_type=code&scope=instagram_business_basic%2Cinstagram_business_manage_messages%2Cinstagram_business_manage_comments%2Cinstagram_business_content_publish%2Cinstagram_business_manage_insights"
     print("oauth_url ::: ", oauth_url)
     return render(request, 'instagram/connect.html', {
         'oauth_url': oauth_url,
@@ -58,7 +58,7 @@ def instagram_callback(request):
     if not result['success']:
         messages.error(request, result.get('error', 'OAuth flow failed. Please try again.'))
         return redirect('instagram:connect')
-
+    logger.warning(f"No IG account found for result={result}")
     # Create or update the InstagramAccount
     ig_account, created = InstagramAccount.objects.update_or_create(
         ig_user_id=result['ig_user_id'],

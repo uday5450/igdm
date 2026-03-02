@@ -55,7 +55,7 @@ def _handle_event(request):
     """
     try:
         body = json.loads(request.body)
-        print("BODY ::::  ", body)
+        logger.warning(f"BODY_handle_event ::::  {body}")
     except json.JSONDecodeError:
         logger.error("Webhook received invalid JSON")
         return JsonResponse({'error': 'Invalid JSON'}, status=400)

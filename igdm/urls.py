@@ -4,6 +4,8 @@ Root URL configuration for igdm project.
 from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import redirect
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -14,4 +16,4 @@ urlpatterns = [
     path('dashboard/', include('dashboard.urls')),
     # Root redirect
     path('', lambda request: redirect('dashboard:home')),
-]
+]+static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

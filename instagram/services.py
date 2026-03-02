@@ -12,7 +12,7 @@ from cryptography.fernet import Fernet, InvalidToken
 logger = logging.getLogger(__name__)
 
 # ─── Graph API Constants ────────────────────────────────────────────
-GRAPH_API_VERSION = 'v21.0'
+GRAPH_API_VERSION = 'v24.0'
 GRAPH_API_BASE = f'https://graph.instagram.com/{GRAPH_API_VERSION}'
 OAUTH_BASE = 'https://www.instagram.com/oauth/authorize'
 TOKEN_URL = f'https://api.instagram.com/oauth/access_token'
@@ -80,7 +80,7 @@ def exchange_code_for_short_token(code: str) -> dict:
     Exchange authorization code for a short-lived access token.
     Returns: {'access_token': ..., 'user_id': ...}
     """
-    redirect_uri = f"{settings.BASE_URL}/instagram/callback/"
+    redirect_uri = f"https://instagram.joingy.site/instagram/callback/"
     client_secret = settings.INSTAGRAM_CLIENT_SECRET
     
     # Debug logging
@@ -151,7 +151,7 @@ def fetch_ig_user_profile(access_token: str) -> dict:
     Returns: {'id': ..., 'username': ..., 'profile_picture_url': ...}
     """
     resp = requests.get(f'{GRAPH_API_BASE}/me', params={
-        'fields': 'id,username,profile_picture_url',
+        'fields': 'id,username,profile_picture_url,user_id',
         'access_token': access_token,
     }, timeout=30)
 
@@ -418,12 +418,13 @@ def complete_oauth_flow(code: str) -> dict:
 
     # Step 3: Fetch profile
     profile = fetch_ig_user_profile(long_token)
+    logger.warning(f"Fetched profile: {profile}")
     if not profile or 'id' not in profile:
         return {'success': False, 'error': 'Failed to fetch Instagram profile.'}
 
     return {
         'success': True,
-        'ig_user_id': profile['id'],
+        'ig_user_id': profile['user_id'],
         'username': profile.get('username', ''),
         'profile_picture_url': profile.get('profile_picture_url', ''),
         'access_token': long_token,
