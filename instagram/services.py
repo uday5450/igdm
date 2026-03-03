@@ -435,7 +435,8 @@ def send_dm_by_user_id(access_token: str, ig_user_id: str, recipient_user_id: st
 
 def create_media_container(access_token: str, ig_user_id: str, media_url: str,
                            media_type: str = None, caption: str = '',
-                           cover_url: str = None, share_to_feed: bool = True) -> dict:
+                           cover_url: str = None, share_to_feed: bool = True,
+                           scheduled_publish_time: int = None) -> dict:
     """
     Create an Instagram media container for publishing.
 
@@ -447,6 +448,7 @@ def create_media_container(access_token: str, ig_user_id: str, media_url: str,
         caption: Post caption text
         cover_url: Public URL to cover/thumbnail image (reels only)
         share_to_feed: Whether to share reel to main feed (reels only)
+        scheduled_publish_time: Unix timestamp for scheduled publishing (optional)
 
     Returns: API response dict with 'id' key on success
     """
@@ -466,6 +468,10 @@ def create_media_container(access_token: str, ig_user_id: str, media_url: str,
     else:
         # Image post
         params['image_url'] = media_url
+
+    # Instagram scheduling — auto-publish at scheduled time
+    if scheduled_publish_time:
+        params['scheduled_publish_time'] = scheduled_publish_time
 
     resp = requests.post(url, data=params, timeout=60)
 
