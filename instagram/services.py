@@ -143,6 +143,56 @@ def refresh_long_lived_token(current_token: str) -> dict:
     return resp.json()
 
 
+def get_valid_access_token(ig_account) -> str:
+    """
+    Get a valid access token for the given InstagramAccount.
+    If the token is expired or expiring within 7 days, automatically refreshes it.
+
+    Args:
+        ig_account: InstagramAccount model instance
+
+    Returns:
+        Plaintext access token string, or '' if unable to get a valid token.
+    """
+    if not ig_account.access_token_encrypted:
+        logger.error(f"No token stored for {ig_account}")
+        return ''
+
+    current_token = decrypt_token(ig_account.access_token_encrypted)
+    if not current_token:
+        logger.error(f"Could not decrypt token for {ig_account}")
+        return ''
+
+    # If token is still valid and not expiring soon, return it
+    if ig_account.is_token_valid and not ig_account.token_expires_soon:
+        return current_token
+
+    # Token is expired or expiring soon — try to refresh
+    logger.info(f"Token for {ig_account} is expired or expiring soon. Attempting refresh...")
+
+    refresh_data = refresh_long_lived_token(current_token)
+
+    if not refresh_data or 'access_token' not in refresh_data:
+        # Refresh failed — still return current token if it hasn't fully expired
+        if ig_account.is_token_valid:
+            logger.warning(f"Token refresh failed for {ig_account}, but current token still valid.")
+            return current_token
+        logger.error(f"Token refresh failed for {ig_account} and token is expired.")
+        return ''
+
+    # Refresh succeeded — save new token
+    new_token = refresh_data['access_token']
+    expires_in = refresh_data.get('expires_in', 5184000)  # Default 60 days
+    new_expiry = timezone.now() + timedelta(seconds=expires_in)
+
+    ig_account.access_token_encrypted = encrypt_token(new_token)
+    ig_account.token_expires_at = new_expiry
+    ig_account.save(update_fields=['access_token_encrypted', 'token_expires_at', 'updated_at'])
+
+    logger.info(f"Token refreshed for {ig_account}. New expiry: {new_expiry}")
+    return new_token
+
+
 # ─── Instagram Account Info ─────────────────────────────────────────
 
 def fetch_ig_user_profile(access_token: str) -> dict:
@@ -224,7 +274,7 @@ def reply_to_comment(access_token: str, comment_id: str, message: str) -> dict:
 
     Returns: API response dict or {'error': ...}
     """
-    url = f"https://graph.instagram.com/v18.0/{comment_id}/replies"
+    url = f"https://graph.instagram.com/v25.0/{comment_id}/replies"
     payload = {
         'message': message,
     }
@@ -378,6 +428,97 @@ def send_dm_by_user_id(access_token: str, ig_user_id: str, recipient_user_id: st
         return {'error': resp.text, 'status_code': resp.status_code}
 
     logger.info(f"DM sent to user {recipient_user_id}")
+    return resp.json()
+
+
+# ─── Content Publishing ─────────────────────────────────────────────
+
+def create_media_container(access_token: str, ig_user_id: str, media_url: str,
+                           media_type: str = None, caption: str = '',
+                           cover_url: str = None, share_to_feed: bool = True) -> dict:
+    """
+    Create an Instagram media container for publishing.
+
+    Args:
+        access_token: Long-lived access token
+        ig_user_id: Instagram Business Account ID
+        media_url: Public URL to image (JPEG) or video (MP4/MOV)
+        media_type: 'REELS' for reels, None for image posts
+        caption: Post caption text
+        cover_url: Public URL to cover/thumbnail image (reels only)
+        share_to_feed: Whether to share reel to main feed (reels only)
+
+    Returns: API response dict with 'id' key on success
+    """
+    url = f'{GRAPH_API_BASE}/{ig_user_id}/media'
+
+    params = {
+        'caption': caption,
+        'access_token': access_token,
+    }
+
+    if media_type == 'REELS':
+        params['media_type'] = 'REELS'
+        params['video_url'] = media_url
+        params['share_to_feed'] = 'true' if share_to_feed else 'false'
+        if cover_url:
+            params['cover_url'] = cover_url
+    else:
+        # Image post
+        params['image_url'] = media_url
+
+    resp = requests.post(url, data=params, timeout=60)
+
+    if resp.status_code != 200:
+        logger.error(f"Container creation failed: {resp.status_code} — {resp.text}")
+        return {'error': resp.text, 'status_code': resp.status_code}
+
+    logger.info(f"Media container created for {ig_user_id}")
+    return resp.json()
+
+
+def check_container_status(access_token: str, container_id: str) -> dict:
+    """
+    Check the status of a media container (useful for video processing).
+
+    Returns: {'status_code': 'FINISHED'|'IN_PROGRESS'|'ERROR', ...}
+    """
+    url = f'{GRAPH_API_BASE}/{container_id}'
+    resp = requests.get(url, params={
+        'fields': 'status_code',
+        'access_token': access_token,
+    }, timeout=30)
+
+    if resp.status_code != 200:
+        logger.error(f"Container status check failed: {resp.status_code} — {resp.text}")
+        return {'error': resp.text}
+
+    return resp.json()
+
+
+def publish_media_container(access_token: str, ig_user_id: str, container_id: str) -> dict:
+    """
+    Publish a previously created media container.
+
+    Args:
+        access_token: Long-lived access token
+        ig_user_id: Instagram Business Account ID
+        container_id: The container ID from create_media_container()
+
+    Returns: API response dict with 'id' key (published media ID)
+    """
+    url = f'{GRAPH_API_BASE}/{ig_user_id}/media_publish'
+
+    resp = requests.post(url, data={
+        'creation_id': container_id,
+        'access_token': access_token,
+    }, timeout=60)
+
+    if resp.status_code != 200:
+        logger.error(f"Media publish failed: {resp.status_code} — {resp.text}")
+        return {'error': resp.text, 'status_code': resp.status_code}
+
+    logger.info(f"Media published for {ig_user_id}: {resp.json().get('id')}")
     return resp.json()
 
 

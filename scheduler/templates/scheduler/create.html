@@ -1,0 +1,697 @@
+{% extends 'base.html' %}
+{% block title %}Schedule New Post{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Schedule New Post</h1>
+        <p class="page-subtitle">Create and schedule an Instagram post or reel for @{{ ig_account.username }}</p>
+    </div>
+</div>
+
+<form method="post" enctype="multipart/form-data" id="scheduleForm" novalidate>
+    {% csrf_token %}
+
+    <div class="scheduler-layout">
+        <!-- LEFT: Form -->
+        <div class="scheduler-form-panel">
+            <!-- Post Type Selector -->
+            <div class="form-group">
+                <label class="form-label">Content Type</label>
+                <div class="type-selector">
+                    <label class="type-option" id="typeImage">
+                        <input type="radio" name="post_type" value="image_post" id="radio_image"
+                            onchange="togglePostType()">
+                        <div class="type-option-inner">
+                            <div class="type-icon type-icon-image">
+                                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
+                                    stroke-width="1.5">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                                    <circle cx="8.5" cy="8.5" r="1.5" />
+                                    <path d="M21 15l-5-5L5 21" />
+                                </svg>
+                            </div>
+                            <span class="type-label">Image Post</span>
+                            <span class="type-desc">JPEG image</span>
+                        </div>
+                    </label>
+                    <label class="type-option" id="typeReel">
+                        <input type="radio" name="post_type" value="reel" id="radio_reel" onchange="togglePostType()">
+                        <div class="type-option-inner">
+                            <div class="type-icon type-icon-reel">
+                                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
+                                    stroke-width="1.5">
+                                    <polygon points="5,3 19,12 5,21" />
+                                </svg>
+                            </div>
+                            <span class="type-label">Reel</span>
+                            <span class="type-desc">MP4 / MOV video</span>
+                        </div>
+                    </label>
+                </div>
+                {% if form.post_type.errors %}
+                <div class="form-error">{{ form.post_type.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Media File Upload -->
+            <div class="form-group">
+                <label class="form-label" for="id_media_file">
+                    <span id="mediaLabel">Upload Image</span>
+                </label>
+                <div class="file-upload-zone" id="mediaDropZone"
+                    onclick="document.getElementById('id_media_file').click()">
+                    <input type="file" name="media_file" id="id_media_file" accept=".jpg,.jpeg,.mp4,.mov"
+                        onchange="handleMediaUpload(this)" style="display:none;">
+                    <div class="file-upload-content" id="mediaUploadContent">
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor"
+                            stroke-width="1.5">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                            <polyline points="17,8 12,3 7,8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <span class="file-upload-text" id="mediaUploadText">Click to upload or drag & drop</span>
+                        <span class="file-upload-hint" id="mediaUploadHint">JPEG image (max 8MB)</span>
+                    </div>
+                    <div class="file-upload-preview" id="mediaPreviewBox" style="display:none;">
+                        <img id="mediaPreviewImg" src="" alt="Preview">
+                        <div class="file-upload-info" id="mediaFileInfo"></div>
+                    </div>
+                </div>
+                {% if form.media_file.errors %}
+                <div class="form-error">{{ form.media_file.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Thumbnail Upload (Reels only) -->
+            <div class="form-group" id="thumbnailGroup" style="display:none;">
+                <label class="form-label" for="id_thumbnail_file">
+                    Thumbnail / Cover Image
+                    <span style="font-weight:400; color:var(--text-muted); font-size:0.8rem;">(optional)</span>
+                </label>
+                <div class="file-upload-zone file-upload-sm" id="thumbDropZone"
+                    onclick="document.getElementById('id_thumbnail_file').click()">
+                    <input type="file" name="thumbnail_file" id="id_thumbnail_file" accept=".jpg,.jpeg,.png"
+                        onchange="handleThumbUpload(this)" style="display:none;">
+                    <div class="file-upload-content" id="thumbUploadContent">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
+                            stroke-width="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <path d="M21 15l-5-5L5 21" />
+                        </svg>
+                        <span class="file-upload-text">Click to upload cover image</span>
+                        <span class="file-upload-hint">JPEG or PNG (max 8MB)</span>
+                    </div>
+                    <div class="file-upload-preview" id="thumbPreviewBox" style="display:none;">
+                        <img id="thumbPreviewImg" src="" alt="Thumbnail">
+                        <div class="file-upload-info" id="thumbFileInfo"></div>
+                    </div>
+                </div>
+                {% if form.thumbnail_file.errors %}
+                <div class="form-error">{{ form.thumbnail_file.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Caption -->
+            <div class="form-group">
+                <label class="form-label" for="id_caption">Caption</label>
+                <textarea name="caption" id="id_caption" class="form-input"
+                    placeholder="Write your caption here... #hashtags @mentions" rows="4"
+                    oninput="updateCaptionCounter()">{{ form.caption.value|default_if_none:'' }}</textarea>
+                <div class="char-counter" id="captionCounter">0 / 2,200</div>
+                {% if form.caption.errors %}
+                <div class="form-error">{{ form.caption.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Share to Feed (Reels only) -->
+            <div class="form-group" id="shareFeedGroup" style="display:none;">
+                <label class="toggle-label">
+                    <input type="checkbox" name="share_to_feed" id="id_share_to_feed" checked>
+                    <span class="toggle-switch"></span>
+                    <span class="toggle-text">
+                        <strong>Share to Feed</strong>
+                        <small>Also show this reel in your main profile grid</small>
+                    </span>
+                </label>
+            </div>
+
+            <!-- Schedule Date/Time -->
+            <div class="form-group">
+                <label class="form-label" for="id_scheduled_at">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                        style="vertical-align:-3px; margin-right:4px;">
+                        <rect x="3" y="4" width="18" height="18" rx="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                    Schedule Date &amp; Time
+                </label>
+                <input type="datetime-local" name="scheduled_at" id="id_scheduled_at" class="form-input"
+                    value="{{ form.scheduled_at.value|default_if_none:'' }}" required>
+                <div class="form-help">Post will be published automatically at this time.</div>
+                {% if form.scheduled_at.errors %}
+                <div class="form-error">{{ form.scheduled_at.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger" style="margin-bottom:20px;">
+                {% for error in form.non_field_errors %}
+                <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div style="display:flex; gap:12px; margin-top:8px;">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                    Schedule Post
+                </button>
+                <a href="{% url 'scheduler:list' %}" class="btn btn-outline btn-lg">Cancel</a>
+            </div>
+        </div>
+
+        <!-- RIGHT: Preview Panel -->
+        <div class="scheduler-preview-panel">
+            <div class="preview-card">
+                <div class="preview-header">
+                    <div class="preview-avatar">{{ ig_account.username|first|upper }}</div>
+                    <span class="preview-username">@{{ ig_account.username }}</span>
+                </div>
+                <div class="preview-media" id="previewMedia">
+                    <div class="preview-placeholder" id="previewPlaceholder">
+                        <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor"
+                            stroke-width="1">
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <path d="M21 15l-5-5L5 21" />
+                        </svg>
+                        <span>Upload media to see preview</span>
+                    </div>
+                    <img id="previewImage" src="" alt="Preview"
+                        style="display:none; width:100%; height:100%; object-fit:cover;">
+                    <video id="previewVideo" src="" style="display:none; width:100%; height:100%; object-fit:cover;"
+                        muted></video>
+                </div>
+                <div class="preview-caption" id="previewCaption">
+                    <span class="preview-caption-user">{{ ig_account.username }}</span>
+                    <span id="previewCaptionText">Your caption will appear here...</span>
+                </div>
+                <div class="preview-schedule" id="previewSchedule">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12,6 12,12 16,14" />
+                    </svg>
+                    <span id="previewScheduleText">Select a date &amp; time</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<style>
+    .scheduler-layout {
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        gap: 32px;
+        align-items: start;
+    }
+
+    .scheduler-form-panel {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        padding: 32px;
+        backdrop-filter: blur(10px);
+    }
+
+    .type-selector {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .type-option input {
+        display: none;
+    }
+
+    .type-option-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 20px 16px;
+        border-radius: var(--border-radius);
+        border: 2px solid var(--border-color);
+        background: rgba(255, 255, 255, 0.02);
+        cursor: pointer;
+        transition: all 0.25s ease;
+        text-align: center;
+    }
+
+    .type-option-inner:hover {
+        border-color: rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .type-option input:checked+.type-option-inner {
+        border-color: var(--color-primary);
+        background: rgba(139, 92, 246, 0.08);
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+    }
+
+    .type-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .type-icon-image {
+        background: rgba(59, 130, 246, 0.15);
+        color: var(--color-info);
+    }
+
+    .type-icon-reel {
+        background: rgba(236, 72, 153, 0.15);
+        color: #ec4899;
+    }
+
+    .type-label {
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .type-desc {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+    }
+
+    /* ─── File Upload Zone ───────────────────────────────────── */
+    .file-upload-zone {
+        border: 2px dashed var(--border-color);
+        border-radius: var(--border-radius);
+        padding: 32px 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: rgba(255, 255, 255, 0.02);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .file-upload-zone:hover {
+        border-color: var(--color-primary);
+        background: rgba(139, 92, 246, 0.04);
+    }
+
+    .file-upload-zone.dragover {
+        border-color: var(--color-primary);
+        background: rgba(139, 92, 246, 0.08);
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+    }
+
+    .file-upload-zone.has-file {
+        border-style: solid;
+        border-color: rgba(16, 185, 129, 0.3);
+        padding: 0;
+    }
+
+    .file-upload-sm {
+        padding: 20px 16px;
+    }
+
+    .file-upload-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-muted);
+    }
+
+    .file-upload-text {
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .file-upload-hint {
+        font-size: 0.78rem;
+        opacity: 0.7;
+    }
+
+    .file-upload-preview {
+        position: relative;
+    }
+
+    .file-upload-preview img {
+        width: 100%;
+        max-height: 200px;
+        object-fit: cover;
+        display: block;
+        border-radius: 10px;
+    }
+
+    .file-upload-info {
+        padding: 10px 16px;
+        font-size: 0.78rem;
+        color: var(--color-success);
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(16, 185, 129, 0.06);
+    }
+
+    .file-upload-info::before {
+        content: '\2713';
+        font-weight: 700;
+    }
+
+    /* ─── Toggle Switch ──────────────────────────────────────── */
+    .toggle-label {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        cursor: pointer;
+        padding: 14px 16px;
+        border-radius: var(--border-radius-sm);
+        border: 1px solid var(--border-color);
+        background: var(--bg-card);
+        transition: all 0.2s;
+    }
+
+    .toggle-label:hover {
+        background: var(--bg-card-hover);
+    }
+
+    .toggle-label input {
+        display: none;
+    }
+
+    .toggle-switch {
+        width: 44px;
+        height: 24px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.1);
+        position: relative;
+        transition: background 0.3s;
+        flex-shrink: 0;
+    }
+
+    .toggle-switch::after {
+        content: '';
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: white;
+        top: 3px;
+        left: 3px;
+        transition: transform 0.3s;
+    }
+
+    .toggle-label input:checked+.toggle-switch {
+        background: var(--color-primary);
+    }
+
+    .toggle-label input:checked+.toggle-switch::after {
+        transform: translateX(20px);
+    }
+
+    .toggle-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .toggle-text strong {
+        font-size: 0.9rem;
+    }
+
+    .toggle-text small {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+    }
+
+    /* ─── Preview Panel ──────────────────────────────────────── */
+    .scheduler-preview-panel {
+        position: sticky;
+        top: 24px;
+    }
+
+    .preview-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        overflow: hidden;
+    }
+
+    .preview-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .preview-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--gradient-accent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.8rem;
+        color: white;
+    }
+
+    .preview-username {
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+
+    .preview-media {
+        width: 100%;
+        height: 300px;
+        background: rgba(255, 255, 255, 0.02);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .preview-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        color: var(--text-muted);
+        font-size: 0.82rem;
+    }
+
+    .preview-caption {
+        padding: 12px 16px;
+        font-size: 0.85rem;
+        line-height: 1.5;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .preview-caption-user {
+        font-weight: 700;
+        margin-right: 6px;
+    }
+
+    #previewCaptionText {
+        color: var(--text-secondary);
+    }
+
+    .preview-schedule {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 16px;
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        border-top: 1px solid var(--border-color);
+        background: rgba(139, 92, 246, 0.04);
+    }
+
+    .alert-danger {
+        background: rgba(239, 68, 68, 0.12);
+        border: 1px solid rgba(239, 68, 68, 0.25);
+        border-radius: var(--border-radius-sm);
+        padding: 12px 16px;
+        color: var(--color-danger);
+        font-size: 0.85rem;
+    }
+
+    @media (max-width: 860px) {
+        .scheduler-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .scheduler-preview-panel {
+            position: static;
+            order: -1;
+        }
+    }
+</style>
+
+<script>
+    // Set default checked
+    (function () {
+        var postType = '{{ form.post_type.value|default_if_none:"image_post" }}';
+        if (postType === 'reel') {
+            document.getElementById('radio_reel').checked = true;
+        } else {
+            document.getElementById('radio_image').checked = true;
+        }
+    })();
+
+    function togglePostType() {
+        var isReel = document.getElementById('radio_reel').checked;
+        document.getElementById('thumbnailGroup').style.display = isReel ? 'block' : 'none';
+        document.getElementById('shareFeedGroup').style.display = isReel ? 'block' : 'none';
+        document.getElementById('mediaLabel').textContent = isReel ? 'Upload Video' : 'Upload Image';
+        document.getElementById('mediaUploadHint').textContent = isReel
+            ? 'MP4 or MOV video (max 100MB)'
+            : 'JPEG image (max 8MB)';
+        var fileInput = document.getElementById('id_media_file');
+        fileInput.accept = isReel ? '.mp4,.mov' : '.jpg,.jpeg';
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function handleMediaUpload(input) {
+        var file = input.files[0];
+        if (!file) return;
+
+        var zone = document.getElementById('mediaDropZone');
+        var content = document.getElementById('mediaUploadContent');
+        var previewBox = document.getElementById('mediaPreviewBox');
+        var previewImg = document.getElementById('mediaPreviewImg');
+        var fileInfo = document.getElementById('mediaFileInfo');
+        var livePreviewImg = document.getElementById('previewImage');
+        var livePreviewVid = document.getElementById('previewVideo');
+        var placeholder = document.getElementById('previewPlaceholder');
+
+        zone.classList.add('has-file');
+        content.style.display = 'none';
+        previewBox.style.display = 'block';
+        fileInfo.textContent = file.name + ' (' + formatFileSize(file.size) + ')';
+
+        var isVideo = file.type.startsWith('video/');
+        var url = URL.createObjectURL(file);
+
+        if (isVideo) {
+            previewImg.src = '';
+            previewImg.style.display = 'none';
+            // Show video in live preview
+            placeholder.style.display = 'none';
+            livePreviewImg.style.display = 'none';
+            livePreviewVid.src = url;
+            livePreviewVid.style.display = 'block';
+            // Show a video icon in the upload zone
+            previewBox.innerHTML = '<div style="padding:24px; text-align:center; color:var(--color-success);"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5,3 19,12 5,21"/></svg><br><span style="font-size:0.85rem;">' + file.name + '</span></div><div class="file-upload-info" id="mediaFileInfo">' + file.name + ' (' + formatFileSize(file.size) + ')</div>';
+        } else {
+            previewImg.src = url;
+            previewImg.style.display = 'block';
+            // Show in live preview
+            placeholder.style.display = 'none';
+            livePreviewVid.style.display = 'none';
+            livePreviewImg.src = url;
+            livePreviewImg.style.display = 'block';
+        }
+    }
+
+    function handleThumbUpload(input) {
+        var file = input.files[0];
+        if (!file) return;
+
+        var zone = document.getElementById('thumbDropZone');
+        var content = document.getElementById('thumbUploadContent');
+        var previewBox = document.getElementById('thumbPreviewBox');
+        var previewImg = document.getElementById('thumbPreviewImg');
+        var fileInfo = document.getElementById('thumbFileInfo');
+
+        zone.classList.add('has-file');
+        content.style.display = 'none';
+        previewBox.style.display = 'block';
+        previewImg.src = URL.createObjectURL(file);
+        previewImg.style.display = 'block';
+        fileInfo.textContent = file.name + ' (' + formatFileSize(file.size) + ')';
+    }
+
+    function updateCaptionCounter() {
+        var caption = document.getElementById('id_caption').value;
+        var counter = document.getElementById('captionCounter');
+        var previewCaption = document.getElementById('previewCaptionText');
+        counter.textContent = caption.length + ' / 2,200';
+        if (caption.length > 2200) { counter.className = 'char-counter danger'; }
+        else if (caption.length > 2000) { counter.className = 'char-counter warning'; }
+        else { counter.className = 'char-counter'; }
+        previewCaption.textContent = caption || 'Your caption will appear here...';
+    }
+
+    // Set min datetime to now + 10 minutes
+    (function () {
+        var now = new Date();
+        now.setMinutes(now.getMinutes() + 10);
+        var y = now.getFullYear();
+        var m = String(now.getMonth() + 1).padStart(2, '0');
+        var d = String(now.getDate()).padStart(2, '0');
+        var h = String(now.getHours()).padStart(2, '0');
+        var min = String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('id_scheduled_at').min = y + '-' + m + '-' + d + 'T' + h + ':' + min;
+    })();
+
+    document.getElementById('id_scheduled_at').addEventListener('change', function () {
+        var val = this.value;
+        if (val) {
+            var date = new Date(val);
+            var options = { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' };
+            document.getElementById('previewScheduleText').textContent = date.toLocaleDateString('en-US', options);
+        } else {
+            document.getElementById('previewScheduleText').textContent = 'Select a date & time';
+        }
+    });
+
+    // Drag and drop support
+    ['mediaDropZone', 'thumbDropZone'].forEach(function (id) {
+        var zone = document.getElementById(id);
+        if (!zone) return;
+        zone.addEventListener('dragover', function (e) { e.preventDefault(); zone.classList.add('dragover'); });
+        zone.addEventListener('dragleave', function () { zone.classList.remove('dragover'); });
+        zone.addEventListener('drop', function (e) {
+            e.preventDefault();
+            zone.classList.remove('dragover');
+            var input = zone.querySelector('input[type="file"]');
+            if (e.dataTransfer.files.length > 0) {
+                input.files = e.dataTransfer.files;
+                input.dispatchEvent(new Event('change'));
+            }
+        });
+    });
+
+    // Init
+    togglePostType();
+    updateCaptionCounter();
+</script>
+{% endblock %}

@@ -14,6 +14,11 @@ urlpatterns = [
     path('automations/', include('automations.urls')),
     path('webhook/', include('webhooks.urls')),
     path('dashboard/', include('dashboard.urls')),
+    path('scheduler/', include('scheduler.urls')),
     # Root redirect
     path('', lambda request: redirect('dashboard:home')),
 ]+static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+# Serve uploaded media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

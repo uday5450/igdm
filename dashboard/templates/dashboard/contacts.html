@@ -19,13 +19,13 @@
         <select name="tag" class="form-input" style="width:auto; min-width:140px;">
             <option value="">All Tags</option>
             {% for tag in tags %}
-            <option value="{{ tag }}" {% if filters.tag==tag %}selected{% endif %}>{{ tag }}</option>
+            <option value="{{ tag }}" {% if filters.tag == tag %}selected{% endif %}>{{ tag }}</option>
             {% endfor %}
         </select>
         <select name="dm_sent" class="form-input" style="width:auto; min-width:140px;">
             <option value="">DM Status</option>
-            <option value="yes" {% if filters.dm_sent=='yes' %}selected{% endif %}>DM Sent</option>
-            <option value="no" {% if filters.dm_sent=='no' %}selected{% endif %}>DM Failed</option>
+            <option value="yes" {% if filters.dm_sent == 'yes' %}selected{% endif %}>DM Sent</option>
+            <option value="no" {% if filters.dm_sent == 'no' %}selected{% endif %}>DM Failed</option>
         </select>
         <button type="submit" class="btn btn-outline">Filter</button>
     </form>
@@ -53,8 +53,13 @@
                         style="max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                         {{ contact.comment_text|truncatechars:60 }}
                     </td>
-                    <td>{% if contact.tag %}<span class="badge badge-info">{{ contact.tag }}</span>{% else %}—{% endif
-                        %}</td>
+                    <td>
+                        {% if contact.tag %}
+                        <span class="badge badge-info">{{ contact.tag }}</span>
+                        {% else %}
+                        &mdash;
+                        {% endif %}
+                    </td>
                     <td>
                         {% if contact.dm_sent %}
                         <span class="badge badge-active">Sent</span>

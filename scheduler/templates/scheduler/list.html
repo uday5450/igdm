@@ -1,0 +1,323 @@
+{% extends 'base.html' %}
+{% block title %}Scheduled Posts{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="page-title">Content Scheduler</h1>
+            <p class="page-subtitle">Schedule posts & reels for @{{ ig_account.username }}</p>
+        </div>
+        <a href="{% url 'scheduler:create' %}" class="btn btn-primary">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Schedule New Post
+        </a>
+    </div>
+</div>
+
+<!-- Tabs -->
+<div class="scheduler-tabs" style="display:flex; gap:8px; margin-bottom:24px;">
+    <a href="?tab=all" class="tab-btn {% if active_tab == 'all' %}tab-active{% endif %}">All</a>
+    <a href="?tab=pending" class="tab-btn {% if active_tab == 'pending' %}tab-active{% endif %}">
+        <span class="tab-dot tab-dot-pending"></span> Pending
+    </a>
+    <a href="?tab=published" class="tab-btn {% if active_tab == 'published' %}tab-active{% endif %}">
+        <span class="tab-dot tab-dot-published"></span> Published
+    </a>
+    <a href="?tab=failed" class="tab-btn {% if active_tab == 'failed' %}tab-active{% endif %}">
+        <span class="tab-dot tab-dot-failed"></span> Failed
+    </a>
+</div>
+
+{% if scheduled_posts %}
+<div class="scheduled-grid">
+    {% for post in scheduled_posts %}
+    <div class="scheduled-card" onclick="window.location='{% url 'scheduler:detail' post.id %}'"
+        style="cursor:pointer;">
+        <!-- Media Preview -->
+        <div class="scheduled-media">
+            {% if post.post_type == 'reel' and post.thumbnail_url %}
+            <img src="{{ post.thumbnail_url }}" alt="Thumbnail" class="scheduled-thumb"
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="scheduled-thumb-fallback" style="display:none;">
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <polygon points="5,3 19,12 5,21" />
+                </svg>
+            </div>
+            {% elif post.post_type == 'reel' %}
+            <div class="scheduled-thumb-fallback">
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <polygon points="5,3 19,12 5,21" />
+                </svg>
+            </div>
+            {% else %}
+            <img src="{{ post.media_url }}" alt="Post" class="scheduled-thumb"
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="scheduled-thumb-fallback" style="display:none;">
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <path d="M21 15l-5-5L5 21" />
+                </svg>
+            </div>
+            {% endif %}
+            <!-- Type Badge -->
+            <div class="type-badge type-badge-{{ post.post_type }}">
+                {% if post.post_type == 'reel' %}
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polygon points="5,3 19,12 5,21" />
+                </svg>
+                Reel
+                {% else %}
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <path d="M21 15l-5-5L5 21" />
+                </svg>
+                Post
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="scheduled-content">
+            <div class="scheduled-caption">{{ post.caption|truncatechars:80|default:"No caption" }}</div>
+            <div class="scheduled-meta">
+                <div class="scheduled-time">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12,6 12,12 16,14" />
+                    </svg>
+                    {{ post.scheduled_at|date:"M d, Y · g:i A" }}
+                </div>
+                <span class="badge badge-{{ post.status }}">{{ post.get_status_display }}</span>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+            <line x1="10" y1="14" x2="14" y2="14" />
+            <line x1="12" y1="12" x2="12" y2="16" />
+        </svg>
+        <h3>No Scheduled Posts</h3>
+        <p>Schedule your first Instagram post or reel to publish automatically at the perfect time.</p>
+        <a href="{% url 'scheduler:create' %}" class="btn btn-primary">Schedule Your First Post</a>
+    </div>
+</div>
+{% endif %}
+
+<style>
+    /* ─── Tabs ───────────────────────────────────────────────── */
+    .tab-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        transition: all 0.2s;
+        text-decoration: none;
+    }
+
+    .tab-btn:hover {
+        background: var(--bg-card-hover);
+        color: var(--text-primary);
+    }
+
+    .tab-active {
+        background: rgba(139, 92, 246, 0.15);
+        color: var(--color-primary);
+        border-color: rgba(139, 92, 246, 0.3);
+    }
+
+    .tab-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+    }
+
+    .tab-dot-pending {
+        background: var(--color-warning);
+    }
+
+    .tab-dot-published {
+        background: var(--color-success);
+    }
+
+    .tab-dot-failed {
+        background: var(--color-danger);
+    }
+
+    /* ─── Grid ───────────────────────────────────────────────── */
+    .scheduled-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+    }
+
+    /* ─── Card ───────────────────────────────────────────────── */
+    .scheduled-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .scheduled-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-glow);
+        border-color: rgba(139, 92, 246, 0.25);
+    }
+
+    /* ─── Media Preview ──────────────────────────────────────── */
+    .scheduled-media {
+        position: relative;
+        width: 100%;
+        height: 180px;
+        background: rgba(255, 255, 255, 0.02);
+        overflow: hidden;
+    }
+
+    .scheduled-thumb {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .scheduled-thumb-fallback {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-muted);
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(236, 72, 153, 0.06));
+    }
+
+    /* ─── Type Badge ─────────────────────────────────────────── */
+    .type-badge {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        backdrop-filter: blur(10px);
+    }
+
+    .type-badge-reel {
+        background: rgba(236, 72, 153, 0.7);
+        color: white;
+    }
+
+    .type-badge-image_post {
+        background: rgba(59, 130, 246, 0.7);
+        color: white;
+    }
+
+    /* ─── Content ────────────────────────────────────────────── */
+    .scheduled-content {
+        padding: 16px;
+    }
+
+    .scheduled-caption {
+        font-size: 0.88rem;
+        color: var(--text-primary);
+        line-height: 1.4;
+        margin-bottom: 12px;
+        min-height: 40px;
+    }
+
+    .scheduled-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .scheduled-time {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.78rem;
+        color: var(--text-muted);
+    }
+
+    /* ─── Status Badges ──────────────────────────────────────── */
+    .badge-pending {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--color-warning);
+    }
+
+    .badge-publishing {
+        background: rgba(59, 130, 246, 0.15);
+        color: var(--color-info);
+    }
+
+    .badge-published {
+        background: rgba(16, 185, 129, 0.15);
+        color: var(--color-success);
+    }
+
+    .badge-failed {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--color-danger);
+    }
+
+    /* ─── Empty state ────────────────────────────────────────── */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-secondary);
+    }
+
+    .empty-state svg {
+        margin: 0 auto 16px;
+        opacity: 0.5;
+    }
+
+    .empty-state h3 {
+        font-size: 1.2rem;
+        margin-bottom: 8px;
+        color: var(--text-primary);
+    }
+
+    .empty-state p {
+        max-width: 400px;
+        margin: 0 auto 24px;
+        font-size: 0.9rem;
+    }
+
+    @media (max-width: 640px) {
+        .scheduled-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .scheduler-tabs {
+            flex-wrap: wrap;
+        }
+    }
+</style>
+{% endblock %}

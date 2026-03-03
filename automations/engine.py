@@ -5,7 +5,7 @@ Handles comment → keyword match → send DM → log contact.
 import logging
 from django.utils import timezone
 from instagram.models import InstagramAccount
-from instagram.services import decrypt_token, send_dm, send_dm_by_user_id, reply_to_comment, check_user_follows
+from instagram.services import decrypt_token, get_valid_access_token, send_dm, send_dm_by_user_id, reply_to_comment, check_user_follows
 from .models import Automation, Contact
 
 logger = logging.getLogger(__name__)
@@ -76,7 +76,7 @@ def process_comment_event(ig_user_id: str, comment_id: str, comment_text: str,
             continue
 
         # Decrypt access token
-        access_token = decrypt_token(ig_account.access_token_encrypted)
+        access_token = get_valid_access_token(ig_account)
         if not access_token:
             _pause_all_automations(ig_account, 'Failed to decrypt access token')
             return {'success': False, 'action': 'paused', 'error': 'Token decryption failed'}
@@ -326,7 +326,7 @@ def process_story_event(ig_user_id: str, sender_id: str, sender_username: str,
         if already_sent:
             continue
 
-        access_token = decrypt_token(ig_account.access_token_encrypted)
+        access_token = get_valid_access_token(ig_account)
         if not access_token:
             _pause_all_automations(ig_account, 'Failed to decrypt access token')
             return {'success': False, 'action': 'paused', 'error': 'Token decryption failed'}
@@ -386,7 +386,7 @@ def process_dm_event(ig_user_id: str, sender_id: str, sender_username: str,
 
     if follow_pending:
         automation = follow_pending.automation
-        access_token = decrypt_token(ig_account.access_token_encrypted)
+        access_token = get_valid_access_token(ig_account)
         if not access_token:
             _pause_all_automations(ig_account, 'Failed to decrypt access token')
             return {'success': False, 'action': 'paused', 'error': 'Token decryption failed'}
@@ -429,7 +429,7 @@ def process_dm_event(ig_user_id: str, sender_id: str, sender_username: str,
         if not automation:
             continue
 
-        access_token = decrypt_token(ig_account.access_token_encrypted)
+        access_token = get_valid_access_token(ig_account)
         if not access_token:
             _pause_all_automations(ig_account, 'Failed to decrypt access token')
             return {'success': False, 'action': 'paused', 'error': 'Token decryption failed'}
@@ -473,7 +473,7 @@ def process_dm_event(ig_user_id: str, sender_id: str, sender_username: str,
     )
 
     for automation in automations:
-        access_token = decrypt_token(ig_account.access_token_encrypted)
+        access_token = get_valid_access_token(ig_account)
         if not access_token:
             _pause_all_automations(ig_account, 'Failed to decrypt access token')
             return {'success': False, 'action': 'paused', 'error': 'Token decryption failed'}
@@ -510,7 +510,7 @@ def process_dm_event(ig_user_id: str, sender_id: str, sender_username: str,
             }
 
         if automation.matches_keyword(message_text):
-            access_token = decrypt_token(ig_account.access_token_encrypted)
+            access_token = get_valid_access_token(ig_account)
             if not access_token:
                 _pause_all_automations(ig_account, 'Failed to decrypt access token')
                 return {'success': False, 'action': 'paused', 'error': 'Token decryption failed'}

@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.conf import settings
 from instagram.models import InstagramAccount
-from instagram.services import decrypt_token, fetch_user_media
+from instagram.services import decrypt_token, get_valid_access_token, fetch_user_media
 from .models import Automation, Contact
 from .forms import AutomationForm
 
@@ -87,7 +87,7 @@ def automation_create(request):
     media_list = []
     if ig_account.is_token_valid:
         try:
-            access_token = decrypt_token(ig_account.access_token_encrypted)
+            access_token = get_valid_access_token(ig_account)
             if access_token:
                 media_list = fetch_user_media(access_token, ig_account.ig_user_id)
         except Exception:
@@ -128,7 +128,7 @@ def automation_edit(request, automation_id):
     media_list = []
     if ig_account.is_token_valid:
         try:
-            access_token = decrypt_token(ig_account.access_token_encrypted)
+            access_token = get_valid_access_token(ig_account)
             if access_token:
                 media_list = fetch_user_media(access_token, ig_account.ig_user_id)
         except Exception:

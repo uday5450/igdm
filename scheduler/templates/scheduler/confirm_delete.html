@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Delete Scheduled Post{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Delete Scheduled Post</h1>
+    <p class="page-subtitle">This action cannot be undone.</p>
+</div>
+
+<div class="card" style="max-width:560px;">
+    <div style="text-align:center; padding:20px 0;">
+        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="var(--color-danger)" stroke-width="1.5"
+            style="margin-bottom:16px;">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="15" y1="9" x2="9" y2="15" />
+            <line x1="9" y1="9" x2="15" y2="15" />
+        </svg>
+        <h3 style="margin-bottom:8px;">Are you sure?</h3>
+        <p style="color:var(--text-secondary); font-size:0.9rem; max-width:400px; margin:0 auto 8px;">
+            You're about to delete this scheduled <strong>{{ post.get_post_type_display }}</strong> scheduled for
+            <strong>{{ post.scheduled_at|date:"M d, Y \a\t g:i A" }}</strong>.
+        </p>
+        {% if post.caption %}
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-top:12px; font-style:italic;">
+            "{{ post.caption|truncatechars:100 }}"
+        </p>
+        {% endif %}
+    </div>
+
+    <div style="display:flex; gap:12px; justify-content:center; margin-top:16px;">
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Yes, Delete It</button>
+        </form>
+        <a href="{% url 'scheduler:detail' post.id %}" class="btn btn-outline">Cancel</a>
+    </div>
+</div>
+{% endblock %}
