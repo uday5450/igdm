@@ -560,7 +560,8 @@ def _send_follow_ask_message(access_token, ig_user_id, sender_id, sender_usernam
     send_dm_by_user_id(
         access_token, ig_user_id, sender_id,
         automation.ask_follow_message,
-        buttons=visit_btn
+        buttons=visit_btn,
+        comment_id=comment_id or None
     )
 
     # Message 2: Quick reply for "I'm following" — this triggers the follow check when user taps it
@@ -568,7 +569,8 @@ def _send_follow_ask_message(access_token, ig_user_id, sender_id, sender_usernam
     result = send_dm_by_user_id(
         access_token, ig_user_id, sender_id,
         "Once you've followed, tap the button below 👇",
-        quick_replies=follow_qr
+        quick_replies=follow_qr,
+        comment_id=comment_id or None
     )
 
     print(f"   Response: {result}")
@@ -620,7 +622,8 @@ def _send_actual_dm_after_follow(access_token, ig_user_id, sender_id, sender_use
 
     result = send_dm_by_user_id(
         access_token, ig_user_id, sender_id,
-        automation.dm_message, buttons=automation.dm_buttons or None
+        automation.dm_message, buttons=automation.dm_buttons or None,
+        comment_id=contact.comment_id or None
     )
     print(f"   Response: {result}")
     if 'error' not in result:

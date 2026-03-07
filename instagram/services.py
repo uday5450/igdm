@@ -373,8 +373,9 @@ def send_dm(access_token: str, ig_user_id: str, recipient_id: str, message: str,
     return resp.json()
 
 
-def send_dm_by_user_id(access_token: str, ig_user_id: str, recipient_user_id: str, message: str, buttons: list = None, quick_replies: list = None) -> dict:
+def send_dm_by_user_id(access_token: str, ig_user_id: str, recipient_id: str, message: str, buttons: list = None, quick_replies: list = None, comment_id: str = None) -> dict:
     url = f'{GRAPH_API_BASE}/{ig_user_id}/messages'
+    recipient = {'comment_id': comment_id} if comment_id else {'id': recipient_id}
     if buttons:
         cta_buttons = []
         for btn in buttons:
@@ -384,7 +385,7 @@ def send_dm_by_user_id(access_token: str, ig_user_id: str, recipient_user_id: st
                 'title': btn.get('title', 'Open Link'),
             })
         payload = {
-            'recipient': {'id': recipient_user_id},
+            'recipient': recipient,
             'message': {
                 'attachment': {
                     'type': 'template',
@@ -406,7 +407,7 @@ def send_dm_by_user_id(access_token: str, ig_user_id: str, recipient_user_id: st
                 'payload': qr.get('payload', ''),
             })
         payload = {
-            'recipient': {'id': recipient_user_id},
+            'recipient': recipient,
             'message': {
                 'text': message,
                 'quick_replies': qr_list,
@@ -416,7 +417,7 @@ def send_dm_by_user_id(access_token: str, ig_user_id: str, recipient_user_id: st
         print(f"   🔘 Sending with {len(qr_list)} quick reply(s): {[q['title'] for q in qr_list]}")
     else:
         payload = {
-            'recipient': {'id': recipient_user_id},
+            'recipient': recipient,
             'message': {'text': message},
             'access_token': access_token,
         }
@@ -427,7 +428,7 @@ def send_dm_by_user_id(access_token: str, ig_user_id: str, recipient_user_id: st
         logger.error(f"DM send (by user ID) failed: {resp.status_code} — {resp.text}")
         return {'error': resp.text, 'status_code': resp.status_code}
 
-    logger.info(f"DM sent to user {recipient_user_id}")
+    logger.info(f"DM sent to comment {recipient_id}")
     return resp.json()
 
 
